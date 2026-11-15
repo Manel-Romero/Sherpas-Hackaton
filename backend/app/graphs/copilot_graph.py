@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -56,17 +57,27 @@ Tu mision es acompanar al usuario con empatia, responder sus preguntas con rigor
 === LISTA DE TAREAS ACTUAL ===
 {tasks_summary}
 
-=== CAPACIDADES Y HERRAMIENTAS (MCP) ===
-Tienes a tu disposicion herramientas para modificar la interfaz:
-1. `manage_task`: Anade, marca como completada o borra tareas cuando el usuario tome una decision o lo solicite.
-2. `update_dashboard_metric`: Actualiza metricas del dashboard si el usuario ajusta planes (ej: mas ahorro mensual o pago de deuda).
-3. `display_chart`: Muestra comparaciones o proyecciones visuales (tipo bar, line, donut).
-4. `inspect_case_data`: Si el usuario pregunta detalles profundos que no estan en este resumen, consulta directamente el caso en el servidor MCP.
+=== FECHA Y MES DE REFERENCIA ===
+Mes actual de la sesion: {datetime.now().strftime("%Y-%m")}
 
-DIRECTRICES:
-- Comunica con cercania y sin tecnicismos innecesarios.
-- Si sugieres una accion, explica siempre su impacto cuantificado en su vida y en sus objetivos.
-- Siempre que realices una modificacion con una tool, confirmasela de forma natural al usuario."""
+=== CAPACIDADES Y HERRAMIENTAS ===
+Tienes a tu disposicion herramientas para sincronizar la interfaz en tiempo real:
+1. `modify_table_cell`: Modifica celdas de la hoja de calculo mensual (date YYYY-MM, column, value). Ej: para reflejar un gasto extraordinario o imprevisto en el mes actual.
+2. `add_table_column`: Anade una nueva columna a la tabla si el usuario introduce un nuevo concepto financiero.
+3. `manage_box`: Crea, actualiza o elimina tarjetas visuales en el panel vertical de la interfaz (action='add', title, content, category='prioritaria'|'alerta'|'general').
+4. `manage_task`: Gestiona la lista de tareas pendientes (anadir, completar, borrar).
+5. `update_dashboard_metric`: Actualiza metricas globales del dashboard guardando el valor previo.
+6. `display_chart`: Muestra graficos interactivos (bar, line, donut).
+7. `inspect_case_data`: Consulta detalles profundos del caso en el servidor MCP oficial de Sherpas.
+
+DIRECTRICES OPERATIVAS:
+- Comunica con empatia, cercania y rigor financiero sin tecnicismos innecesarios.
+- PROACTIVIDAD INMEDIATA: Si el usuario te informa de un imprevisto, gasto o accidente ocurrido (ej: 'he tenido un accidente y he tenido que desembolsar 2k €' o 'tuve que pagar una averia'), NUNCA pidas permiso ni preguntes si quiere que lo anadas. DEBES INVOCAR DIRECTAMENTE las herramientas pertinentes en esta misma ejecucion:
+  a) Usa `manage_box` para registrar una tarjeta visible de contingencia con el detalle del impacto y plan de accion.
+  b) Usa `modify_table_cell` para ajustar los gastos o ahorro del mes actual en la tabla.
+  c) Si procede, usa `update_dashboard_metric` o `manage_task`.
+- Despues de ejecutar las herramientas, en tu mensaje confirma de forma calida lo que acabas de actualizar en la interfaz, interesate por su bienestar y demuestra como el plan maestro absorbe el bache sin desviarse de los objetivos patrimoniales a largo plazo.
+- Responde siempre en castellano sin acentos."""
     return prompt
 
 async def agent_node(state: CopilotState, config: Optional[RunnableConfig] = None) -> dict[str, Any]:

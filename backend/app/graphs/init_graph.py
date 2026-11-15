@@ -194,6 +194,56 @@ def persist_session_node(state: CaseInitState) -> CaseInitState:
     if state.get("executive_summary"):
         session.summary_executive = state["executive_summary"]
 
+    # Sincronizar almacenamiento local para la interfaz de Streamlit (tabla mensual y cajas)
+    try:
+        from frontend import table_store as ts
+        from frontend import boxes_store as bs
+
+        # 1. Inicializar la hoja de calculo mensual a 12 meses
+        if state.get("dashboard_initial"):
+            d = state["dashboard_initial"]
+            ts.initialize_default_table(
+                case_id=case_id,
+                monthly_income=d.monthly_income,
+                monthly_expenses=d.monthly_expenses,
+                total_debt=d.total_liabilities,
+                net_worth=d.net_worth
+            )
+
+        # 2. Inicializar las cajas verticales (Accion Inmediata + Tareas del Plan)
+        if state.get("master_plan"):
+            mp = state["master_plan"]
+            boxes_data = {"boxes": []}
+            
+            # Caja 1: Accion Inmediata (Hoy)
+            act = mp.immediate_action
+            steps_txt = " | ".join(act.instructions) if act.instructions else act.reason
+            boxes_data["boxes"].append({
+                "title": f"⚡ Accion Inmediata: {act.title}",
+                "content": f"{steps_txt} - Impacto: {act.expected_impact}",
+                "category": "immediate"
+            })
+            
+            # Caja 2: Titular del Plan
+            boxes_data["boxes"].append({
+                "title": "🎯 Objetivo Maestro",
+                "content": mp.headline,
+                "category": "goal"
+            })
+
+            # Cajas 3+: Tareas accionables
+            for t in mp.tasks:
+                imp_str = f" ({t.impact.value})" if t.impact else ""
+                boxes_data["boxes"].append({
+                    "title": f"[{t.category.upper()}] {t.title}{imp_str}",
+                    "content": f"Semana {t.week} - {t.description}",
+                    "category": t.category
+                })
+
+            bs.save(boxes_data, case_id=case_id)
+    except Exception as e:
+        logger.warning(f"No se pudo sincronizar almacenamiento de frontend: {e}")
+
     return state
 
 # Compilacion del grafo de inicializacion

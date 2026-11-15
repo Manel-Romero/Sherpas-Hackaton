@@ -105,4 +105,68 @@ async def inspect_case_data(
     except Exception as e:
         return f"Error consultando datos de {part} / {section} en servidor MCP: {str(e)}"
 
-ALL_COPILOT_TOOLS = [manage_task, update_dashboard_metric, display_chart, inspect_case_data]
+@tool
+def modify_table_cell(
+    date: str,
+    column: str,
+    value: float,
+    config: RunnableConfig = None
+) -> str:
+    """Modifica o introduce un valor numerico en una celda de la hoja de calculo mensual (ej: fecha '2026-03', columna 'Gastos_Fijos', valor 17336)."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        from frontend import table_store as ts
+        ts.set_cell(date, column, value, case_id=case_id)
+        return f"Celda ({date}, {column}) actualizada a {value} en la tabla mensual del cliente."
+    except Exception as e:
+        return f"Error al modificar celda: {str(e)}"
+
+@tool
+def add_table_column(
+    name: str,
+    default: float = 0.0,
+    config: RunnableConfig = None
+) -> str:
+    """Anade una nueva columna a la hoja de calculo mensual (ej: 'Fondo_Herencia', 'Amortizacion_Extra')."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        from frontend import table_store as ts
+        ts.add_column(name, default, case_id=case_id)
+        return f"Columna '{name}' anadida con exito a la tabla mensual."
+    except Exception as e:
+        return f"Error anadiendo columna: {str(e)}"
+
+@tool
+def manage_box(
+    action: Literal["add", "update", "delete"],
+    title: str,
+    content: str = "",
+    category: str = "general",
+    config: RunnableConfig = None
+) -> str:
+    """Crea, actualiza o elimina una tarjeta visual en el panel vertical de la interfaz (ej: para registrar un hito, alerta de emergencia o tarea completada)."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        from frontend import boxes_store as bs
+        if action in ("add", "update"):
+            bs.add_box(title, content, category, case_id=case_id)
+            return f"Tarjeta '{title}' guardada en el panel vertical."
+        elif action == "delete":
+            bs.remove_box(title, case_id=case_id)
+            return f"Tarjeta '{title}' eliminada del panel vertical."
+        return f"Accion '{action}' no reconocida."
+    except Exception as e:
+        return f"Error gestionando tarjeta: {str(e)}"
+
+ALL_COPILOT_TOOLS = [
+    manage_task,
+    update_dashboard_metric,
+    display_chart,
+    inspect_case_data,
+    modify_table_cell,
+    add_table_column,
+    manage_box,
+]

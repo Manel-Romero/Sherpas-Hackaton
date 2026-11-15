@@ -2,377 +2,371 @@ import os
 import json
 import httpx
 import streamlit as st
-import plotly.graph_objects as go
+import streamlit.components.v1 as components
+import pandas as pd
 
-# Configuracion de pagina en modo ancho
-st.set_page_config(
-    page_title="Sherpas Wealth Co-Pilot",
-    page_icon="🧭",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+from frontend.style import style
+from frontend import table_store as ts
+from frontend import boxes_store as bs
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+# Configuracion de pagina completa en modo ancho
+st.set_page_config(page_title="Sherpas Wealth Co-Pilot", page_icon="🧭", layout="wide")
 
-# Estilos CSS sutiles para look fintech
+# Inyeccion de estilos CSS personalizados (Tema oscuro fintech)
+st.markdown(style, unsafe_allow_html=True)
+
+# Estilos adicionales para cabecera y tarjetas destacadas
 st.markdown("""
 <style>
-    .metric-card {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 8px;
-    }
-    .immediate-action-box {
-        background-color: #f0fdf4;
-        border-left: 4px solid #22c55e;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 12px;
-    }
-    .badge-priority {
-        display: inline-block;
-        padding: 2px 8px;
+    .top-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: var(--surface);
+        padding: 10px 16px;
         border-radius: 12px;
-        font-size: 0.75rem;
+        border: 1px solid var(--border);
+        margin-bottom: 16px;
+    }
+    .immediate-badge {
+        background-color: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.8rem;
         font-weight: 600;
+        margin-bottom: 6px;
+        display: inline-block;
+    }
+    .kpi-pill {
+        background: var(--surface-2);
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 0.9rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Inicializacion de variables de sesion
-if "case_id" not in st.session_state:
-    st.session_state.case_id = "michael-carter"
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "dashboard" not in st.session_state:
-    st.session_state.dashboard = None
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
-if "master_plan" not in st.session_state:
-    st.session_state.master_plan = None
-if "cases_list" not in st.session_state:
-    st.session_state.cases_list = []
-if "chart_data" not in st.session_state:
-    st.session_state.chart_data = None
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
-# Funciones de consulta a la API backend
+# =============================================================================
+# ESTADO DE SESION
+# =============================================================================
+ss = st.session_state
+
+if "case_id" not in ss:
+    ss.case_id = "michael-carter"
+if "messages" not in ss:
+    ss.messages = []
+if "cases_list" not in ss:
+    ss.cases_list = []
+if "editor_gen" not in ss:
+    ss.editor_gen = 0
+if "table_version" not in ss:
+    ss.table_version = 0
+if "boxes_version" not in ss:
+    ss.boxes_version = 0
+if "df" not in ss:
+    ss.df = ts.to_df(ts.load(ss.case_id))
+if "boxes" not in ss:
+    ss.boxes = bs.load(ss.case_id).get("boxes", [])
+
+# =============================================================================
+# COMUNICACION CON BACKEND FASTAPI
+# =============================================================================
 def fetch_cases():
     try:
-        r = httpx.get(f"{API_BASE_URL}/api/cases", timeout=10)
+        r = httpx.get(f"{API_BASE_URL}/api/cases", timeout=5)
         if r.status_code == 200:
-            st.session_state.cases_list = r.json()
-    except Exception as e:
-        st.sidebar.error(f"Error conectando al backend: {e}")
+            ss.cases_list = r.json()
+    except Exception:
+        ss.cases_list = [
+            {"id": "michael-carter", "title": "Michael Carter", "city": "Austin", "score": 26},
+            {"id": "daniel-emily-johnson", "title": "Daniel & Emily", "city": "Denver", "score": 52},
+            {"id": "samantha-lewis", "title": "Samantha Lewis", "city": "Miami", "score": 82},
+            {"id": "timothy-melanie-weah", "title": "Timothy & Melanie", "city": "San Francisco", "score": 60}
+        ]
 
-def sync_dashboard_and_tasks(case_id: str):
-    try:
-        r_dash = httpx.get(f"{API_BASE_URL}/api/cases/{case_id}/dashboard", timeout=10)
-        if r_dash.status_code == 200:
-            st.session_state.dashboard = r_dash.json()
-
-        r_tasks = httpx.get(f"{API_BASE_URL}/api/cases/{case_id}/tasks", timeout=10)
-        if r_tasks.status_code == 200:
-            st.session_state.tasks = r_tasks.json()
-    except Exception as e:
-        st.error(f"Error sincronizando datos: {e}")
-
-def initialize_case_plan(case_id: str, query: str = ""):
-    with st.spinner("Analizando caso con modelo de razonamiento y generando plan maestro..."):
+def initialize_case_plan(case_id: str):
+    with st.spinner("Analizando perfil con el modelo de razonamiento y poblando proyecciones..."):
         try:
-            payload = {"user_query": query or "Disena el plan inicial de choque"}
-            r = httpx.post(f"{API_BASE_URL}/api/cases/{case_id}/init", json=payload, timeout=60)
+            r = httpx.post(f"{API_BASE_URL}/api/cases/{case_id}/init", json={}, timeout=60)
             if r.status_code == 200:
                 data = r.json()
-                st.session_state.master_plan = data.get("master_plan")
-                st.session_state.tasks = data.get("tasks", [])
-                st.session_state.dashboard = data.get("dashboard")
-                st.session_state.messages = [
+                mp = data.get("master_plan", {})
+                ss.messages = [
                     {
                         "role": "assistant",
-                        "content": f"¡Hola! He analizado tu perfil financiero completo. {data.get('master_plan', {}).get('headline', '')}. ¿En que te gustaria enfocarte hoy?"
+                        "content": f"¡Hola! He analizado tu perfil financiero completo de Sherpas. {mp.get('headline', '')}.\n\nTu accion inmediata para hoy es: **{mp.get('immediate_action', {}).get('title', '')}**. ¿En que puedo ayudarte?"
                     }
                 ]
+                # Recargar tabla y cajas
+                ss.df = ts.to_df(ts.load(case_id))
+                ss.boxes = bs.load(case_id).get("boxes", [])
+                ss.table_version = ts.version(case_id)
+                ss.boxes_version = bs.version(case_id)
+                ss.editor_gen += 1
                 st.success("Plan maestro inicializado con exito")
+                st.rerun()
             else:
                 st.error(f"Fallo al inicializar: {r.text}")
         except Exception as e:
-            st.error(f"Error de conexion al inicializar: {e}")
+            st.error(f"Error conectando con el backend: {e}")
 
-def update_task_status(case_id: str, task_id: str, current_status: str):
-    new_status = "completed" if current_status != "completed" else "pending"
-    try:
-        r = httpx.patch(
-            f"{API_BASE_URL}/api/cases/{case_id}/tasks/{task_id}",
-            json={"status": new_status},
-            timeout=10
-        )
-        if r.status_code == 200:
-            sync_dashboard_and_tasks(case_id)
-            st.rerun()
-    except Exception as e:
-        st.error(f"Error actualizando tarea: {e}")
-
-# Cargar lista de casos si aun no esta disponible
-if not st.session_state.cases_list:
+if not ss.cases_list:
     fetch_cases()
 
-# BARRA LATERAL: Selector de caso e informacion
-with st.sidebar:
-    st.title("🧭 Sherpas Wealth")
-    st.caption("Co-Pilot Financiero Interactivo")
+# Sincronizar versiones de ficheros locales si cambiaron
+if ts.version(ss.case_id) != ss.table_version:
+    ss.table_version = ts.version(ss.case_id)
+    ss.df = ts.to_df(ts.load(ss.case_id))
+    ss.editor_gen += 1
 
-    case_options = {c["id"]: f"{c['title']} (Score: {c.get('score', 0)})" for c in st.session_state.cases_list}
-    if not case_options:
-        case_options = {"michael-carter": "Michael Carter (Austin) - Score: 26"}
+if bs.version(ss.case_id) != ss.boxes_version:
+    ss.boxes_version = bs.version(ss.case_id)
+    ss.boxes = bs.load(ss.case_id).get("boxes", [])
 
-    selected_id = st.selectbox(
-        "Seleccionar Cliente:",
-        options=list(case_options.keys()),
-        format_func=lambda x: case_options.get(x, x),
-        index=list(case_options.keys()).index(st.session_state.case_id) if st.session_state.case_id in case_options else 0
+# =============================================================================
+# CABECERA SUPERIOR: SELECTOR Y CARGA DE PLAN
+# =============================================================================
+case_map = {c["id"]: f"{c.get('title', c['id'])} ({c.get('city', '')}) - Score: {c.get('score', 0)}" for c in ss.cases_list}
+active_meta = next((c for c in ss.cases_list if c["id"] == ss.case_id), {})
+
+head_col1, head_col2, head_col3 = st.columns([4, 2, 4])
+with head_col1:
+    selected_case = st.selectbox(
+        "Cliente:",
+        options=list(case_map.keys()),
+        format_func=lambda x: case_map.get(x, x),
+        index=list(case_map.keys()).index(ss.case_id) if ss.case_id in case_map else 0,
+        label_visibility="collapsed"
     )
-
-    if selected_id != st.session_state.case_id:
-        st.session_state.case_id = selected_id
-        st.session_state.master_plan = None
-        st.session_state.messages = []
-        sync_dashboard_and_tasks(selected_id)
+    if selected_case != ss.case_id:
+        ss.case_id = selected_case
+        ss.messages = []
+        ss.df = ts.to_df(ts.load(selected_case))
+        ss.boxes = bs.load(selected_case).get("boxes", [])
+        ss.table_version = ts.version(selected_case)
+        ss.boxes_version = bs.version(selected_case)
+        ss.editor_gen += 1
         st.rerun()
 
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("🚀 Cargar Plan", use_container_width=True):
-            initialize_case_plan(st.session_state.case_id)
-            st.rerun()
-    with col_btn2:
-        if st.button("🔄 Refrescar", use_container_width=True):
-            sync_dashboard_and_tasks(st.session_state.case_id)
-            st.rerun()
+with head_col2:
+    if st.button("🚀 Cargar / Reiniciar Plan", use_container_width=True):
+        initialize_case_plan(ss.case_id)
 
-    st.divider()
+with head_col3:
+    score_val = active_meta.get("score", 0)
+    score_status = "Critico" if score_val < 40 else ("Atencion" if score_val < 70 else "Optimo")
+    st.markdown(
+        f"<div style='text-align: right; font-size: 0.95rem; padding-top: 6px;'>"
+        f"Score: <strong>{score_val}/100</strong> <span style='color: {'#ef4444' if score_val < 40 else '#3b82f6'};'>({score_status})</span> | "
+        f"Hogar: <strong>{active_meta.get('city', '')}</strong>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
 
-    # Informacion resumida del hogar
-    current_case_meta = next((c for c in st.session_state.cases_list if c["id"] == st.session_state.case_id), None)
-    if current_case_meta:
-        st.subheader("Datos del Hogar")
-        st.write(f"**Ciudad:** {current_case_meta.get('city', 'N/A')}")
-        st.write(f"**Score Publicado:** {current_case_meta.get('score', 0)} / 100")
-        hh = current_case_meta.get("household", [])
-        if hh:
-            st.write("**Integrantes:**")
-            for m in hh:
-                st.caption(f"- {m.get('first_name')} ({m.get('role')}, {m.get('age', 'N/A')} anos)")
-
-# Sincronizar datos si no estan cargados
-if not st.session_state.dashboard:
-    sync_dashboard_and_tasks(st.session_state.case_id)
-
-# LAYOUT PRINCIPAL: 3 PANELES SINCRONIZADOS
-col_dash, col_tasks, col_chat = st.columns([3.8, 3.2, 3.0], gap="medium")
-
-# ==========================================
-# PANEL 1: DASHBOARD FINANCIERO
-# ==========================================
-with col_dash:
-    st.subheader("📊 Dashboard Financiero")
-    
-    db = st.session_state.dashboard
-    if db:
-        # Metricas superiores principales
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            st.metric(
-                label="Health Score",
-                value=f"{db.get('health_score', 0)} / 100",
-                delta="Critico" if db.get('health_score', 0) < 40 else "Estable"
-            )
-        with col_m2:
-            nw = db.get("net_worth", 0)
-            nw_prev = db.get("metrics", {}).get("net_worth", {}).get("previous_value")
-            delta_nw = f"{(nw - nw_prev):+,.0f}" if nw_prev is not None else None
-            st.metric(
-                label="Patrimonio Neto",
-                value=f"${nw:,.0f}",
-                delta=delta_nw
-            )
-        with col_m3:
-            cf = db.get("monthly_free_cashflow", 0)
-            st.metric(
-                label="Cashflow Libre",
-                value=f"${cf:,.0f}/mes",
-                delta="Superavit" if cf >= 0 else "Deficit",
-                delta_color="normal" if cf >= 0 else "inverse"
-            )
-
-        st.divider()
-
-        # Desglose de ingresos y gastos
-        col_sub1, col_sub2 = st.columns(2)
-        with col_sub1:
-            st.metric(label="Ingresos Mensuales", value=f"${db.get('monthly_income', 0):,.0f}")
-        with col_sub2:
-            st.metric(label="Gastos Mensuales", value=f"${db.get('monthly_expenses', 0):,.0f}")
-
-        # Tarjetas adicionales generadas por el Co-Pilot
-        metrics_dict = db.get("metrics", {})
-        custom_metrics = {k: v for k, v in metrics_dict.items() if k not in ["health_score", "net_worth", "monthly_income", "monthly_expenses", "monthly_cashflow"]}
-        if custom_metrics:
-            st.write("**Metricas Ajustadas por el Co-Pilot:**")
-            for k, m in custom_metrics.items():
-                st.info(f"**{m.get('label', k)}:** {m.get('formatted_value', m.get('value'))} | *{m.get('note', '')}*")
-
-        # Visualizacion de graficos interactivos si existen
-        chart = st.session_state.chart_data
-        if chart:
-            st.write(f"**{chart.get('title', 'Proyeccion Grafica')}**")
-            c_type = chart.get("type", "bar")
-            labels = chart.get("labels", [])
-            values = chart.get("values", [])
+# =============================================================================
+# COMPONENTES DE CAJA Y TABLA
+# =============================================================================
+def render_box(title: str, content: str, category: str = "general"):
+    """Dibuja una tarjeta con diseno adaptable."""
+    with st.container():
+        st.markdown('<span class="box-marker"></span>', unsafe_allow_html=True)
+        head, btn = st.columns([20, 1])
+        
+        is_immediate = category == "immediate" or title.startswith("⚡")
+        if is_immediate:
+            head.markdown('<span class="immediate-badge">⚡ Accion Prioritaria (Hoy)</span>', unsafe_allow_html=True)
             
-            if c_type == "bar":
-                fig = go.Figure(data=[go.Bar(x=labels, y=values, marker_color="#0ea5e9")])
-            elif c_type == "donut":
-                fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5)])
-            else:
-                fig = go.Figure(data=[go.Scatter(x=labels, y=values, mode="lines+markers", line=dict(color="#0ea5e9"))])
-            
-            fig.update_layout(margin=dict(l=10, r=10, t=25, b=10), height=240)
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Haz clic en 'Cargar Plan' para generar el analisis inicial del cliente.")
+        head.subheader(title)
+        btn.button(
+            "✕",
+            key=f"remove_{ss.case_id}_{title}",
+            on_click=bs.remove_box,
+            args=(title, ss.case_id),
+        )
+        st.markdown(content.replace("\n", "  \n"))
 
-# ==========================================
-# PANEL 2: PLAN DE ACCION Y TAREAS
-# ==========================================
-with col_tasks:
-    st.subheader("📋 Plan de Accion")
-    
-    mp = st.session_state.master_plan
-    tasks = st.session_state.tasks
-
-    if mp and mp.get("immediate_action"):
-        act = mp["immediate_action"]
-        st.markdown(f"""
-        <div class="immediate-action-box">
-            <strong>⚡ Accion Inmediata (Hoy):</strong> {act.get('title', '')}<br/>
-            <small style="color: #15803d;">Impacto: {act.get('expected_impact', '')}</small>
-        </div>
-        """, unsafe_allow_html=True)
-
-    if tasks:
-        completed_count = sum(1 for t in tasks if t.get("status") == "completed")
-        progress_pct = completed_count / len(tasks) if tasks else 0
-        st.progress(progress_pct, text=f"Progreso del plan: {completed_count}/{len(tasks)} completadas ({int(progress_pct*100)}%)")
-
-        st.write("**Lista de Tareas:**")
-        for t in tasks:
-            t_id = t.get("id", "")
-            t_title = t.get("title", "")
-            t_status = t.get("status", "pending")
-            t_cat = t.get("category", "general").upper()
-            t_week = t.get("week", 1)
-            is_done = t_status == "completed"
-
-            col_chk, col_txt = st.columns([0.15, 0.85])
-            with col_chk:
-                checked = st.checkbox("", value=is_done, key=f"chk_{t_id}")
-                if checked != is_done:
-                    update_task_status(st.session_state.case_id, t_id, t_status)
-
-            with col_txt:
-                strike_start = "~~" if is_done else ""
-                strike_end = "~~" if is_done else ""
-                st.markdown(f"{strike_start}**[{t_cat}]** {t_title} *(Semana {t_week})*{strike_end}")
-                if t.get("impact"):
-                    imp = t["impact"]
-                    st.caption(f"Impacto: {imp.get('value', '')} ({imp.get('metric', '')})")
-    else:
-        st.info("Sin tareas activas. Inicia el plan para desplegar el roadmap.")
-
-# ==========================================
-# PANEL 3: CHAT CO-PILOT INTERACTIVO
-# ==========================================
-with col_chat:
-    st.subheader("💬 Co-Pilot Chat")
-
-    # Chips de preguntas rapidas
-    col_chip1, col_chip2 = st.columns(2)
-    chip_prompt = None
-    with col_chip1:
-        if st.button("🔍 Explicar mi score", use_container_width=True):
-            chip_prompt = "Por que mi score es tan bajo y cual es mi cuello de botella principal?"
-    with col_chip2:
-        if st.button("💰 Simular colchon", use_container_width=True):
-            chip_prompt = "Usa update_dashboard_metric para aumentar mi colchon a 4 meses y anade la tarea."
-
-    # Historial de chat
-    chat_container = st.container(height=420)
-    with chat_container:
-        for m in st.session_state.messages:
-            with st.chat_message(m["role"]):
-                st.write(m["content"])
-
-    # Entrada de texto del usuario
-    user_input = st.chat_input("Escribe a tu asesor co-pilot...")
-    prompt_to_send = chip_prompt or user_input
-
-    if prompt_to_send:
-        # 1. Registrar mensaje del usuario
-        st.session_state.messages.append({"role": "user", "content": prompt_to_send})
-        with chat_container:
-            with st.chat_message("user"):
-                st.write(prompt_to_send)
-
-        # 2. Llamada interactiva al backend via streaming SSE
-        with chat_container:
-            with st.chat_message("assistant"):
-                text_placeholder = st.empty()
-                full_response = ""
-                tools_called = []
-
+def add_column_popover():
+    with st.popover("➕ Anadir Columna"):
+        with st.form(f"add_col_{ss.case_id}", clear_on_submit=True):
+            name = st.text_input("Nombre de la columna (ej: Fondo_Estudios)")
+            default = st.number_input("Valor por defecto", value=0.0)
+            if st.form_submit_button("Guardar") and name.strip():
                 try:
-                    with httpx.Client(timeout=60.0) as client:
-                        with client.stream(
-                            "POST",
-                            f"{API_BASE_URL}/api/chat/stream",
-                            json={"message": prompt_to_send, "case_id": st.session_state.case_id}
-                        ) as response:
-                            for line in response.iter_lines():
-                                if not line.startswith("data: "):
-                                    continue
-                                raw_event = line[6:].strip()
-                                if not raw_event:
-                                    continue
-                                try:
-                                    event = json.loads(raw_event)
-                                    e_type = event.get("type")
+                    ts.add_column(name.strip(), default, case_id=ss.case_id)
+                    ss.table_version = ts.version(ss.case_id)
+                    ss.df = ts.to_df(ts.load(ss.case_id))
+                    ss.editor_gen += 1
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
 
-                                    if e_type == "delta":
-                                        chunk = event.get("delta", "")
-                                        full_response += chunk
-                                        text_placeholder.markdown(full_response + "▌")
+# =============================================================================
+# LAS TRES MODALIDADES (TABS)
+# =============================================================================
+tab_vertical, tab_table, tab_chat = st.tabs(["Vertical", "Table", "Chat"])
 
-                                    elif e_type == "tool_start":
-                                        t_name = event.get("tool", "herramienta")
-                                        tools_called.append(t_name)
+# --- Tab 1: Vertical (Cajas y tareas) ---
+with tab_vertical:
+    boxes = ss.boxes
+    if not boxes:
+        st.info("No hay tarjetas activas. Pulsa 'Cargar / Reiniciar Plan' para generar la sintesis del caso.")
+    else:
+        for b in boxes:
+            render_box(b.get("title", ""), b.get("content", "Vacio"), b.get("category", "general"))
 
-                                    elif e_type == "state_update":
-                                        # Captura de graficos generados
-                                        if event.get("chart"):
-                                            st.session_state.chart_data = event["chart"]
+# --- Tab 2: Table (Hoja de calculo mensual) ---
+with tab_table:
+    current_table = ts.load(ss.case_id)
+    rows = current_table.get("rows", [])
+    cols = current_table.get("columns", [])
 
-                                except json.JSONDecodeError:
-                                    continue
+    # Resumen superior de KPIs
+    if rows:
+        latest_row = rows[-1]
+        c1, c2, c3, c4 = st.columns(4)
+        c1.markdown(f"<div class='kpi-pill'>Mes activo: <strong>{latest_row.get('date', 'N/A')}</strong></div>", unsafe_allow_html=True)
+        if "Patrimonio" in latest_row:
+            c2.markdown(f"<div class='kpi-pill'>Patrimonio: <strong>${latest_row['Patrimonio']:,.0f}</strong></div>", unsafe_allow_html=True)
+        if "Ingresos" in latest_row and "Gastos_Fijos" in latest_row:
+            cf = latest_row["Ingresos"] - latest_row["Gastos_Fijos"]
+            c3.markdown(f"<div class='kpi-pill'>Ahorro mensual: <strong>${cf:,.0f}</strong></div>", unsafe_allow_html=True)
+        if "Deuda_Pendiente" in latest_row:
+            c4.markdown(f"<div class='kpi-pill'>Deuda viva: <strong>${latest_row['Deuda_Pendiente']:,.0f}</strong></div>", unsafe_allow_html=True)
 
-                    text_placeholder.markdown(full_response)
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+    add_column_popover()
 
-                    # Si se invocaron herramientas, sincronizar dashboard y tareas
-                    if tools_called:
-                        sync_dashboard_and_tasks(st.session_state.case_id)
-                        st.rerun()
+    columns_in_df = list(ss.df.columns[1:])
+    config = {
+        "date": st.column_config.TextColumn(
+            "Mes (YYYY-MM)",
+            required=True,
+            default=ts.default_month(current_table),
+        )
+    }
+    for c in columns_in_df:
+        config[c] = st.column_config.NumberColumn(c, format="$%.2f")
 
-                except Exception as e:
-                    st.error(f"Error en la comunicacion con el Co-Pilot: {e}")
+    edited = st.data_editor(
+        ss.df,
+        key=f"editor-{ss.editor_gen}-{ss.case_id}",
+        num_rows="dynamic",
+        column_config=config,
+        hide_index=True,
+    )
+
+    try:
+        new_data = ts.from_df(edited, columns_in_df)
+        if new_data != current_table:
+            row_added = len(new_data["rows"]) > len(current_table["rows"])
+            ts.save(new_data, case_id=ss.case_id)
+            ss.table_version = ts.version(ss.case_id)
+            if row_added:
+                ss.df = ts.to_df(new_data)
+                ss.editor_gen += 1
+                st.rerun()
+    except ValueError as e:
+        st.error(str(e))
+
+# --- Tab 3: Chat (Co-Pilot Conversacional en Streaming) ---
+with tab_chat:
+    # Chips de preguntas rapidas recomendadas para la presentacion
+    st.write("**Preguntas de prueba rapida para la demo:**")
+    c_btn1, c_btn2, c_btn3 = st.columns(3)
+    chip_text = None
+    with c_btn1:
+        if st.button("🚨 Tuve un accidente (-2.000 €)", use_container_width=True):
+            chip_text = "He tenido un accidente imprevisto y he tenido que desembolsar 2.000 €. Ajusta mi tabla para absorber el gasto y dime como afecta a mi plan."
+    with c_btn2:
+        if st.button("🔍 Explica mi score bajo", use_container_width=True):
+            chip_text = "¿Por que mi score es tan bajo y cual es mi cuello de botella principal segun mi informe?"
+    with c_btn3:
+        if st.button("💰 Bonus de 15.000 $", use_container_width=True):
+            chip_text = "Voy a recibir un bonus de 15.000 $. En lugar de gastarlo, amortiza la deuda de la tarjeta en la tabla y destina el resto a mi colchon de seguridad."
+
+    # Historial de mensajes
+    for m in ss.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+# =============================================================================
+# CHAT INPUT Y STREAMING SSE
+# =============================================================================
+prompt_input = st.chat_input("Escribe tu consulta al Co-Pilot...")
+active_prompt = chip_text or prompt_input
+
+if active_prompt:
+    ss.messages.append({"role": "user", "content": active_prompt})
+    with tab_chat:
+        with st.chat_message("user"):
+            st.markdown(active_prompt)
+
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            full_response = ""
+            tools_used = []
+
+            try:
+                with httpx.Client(timeout=60.0) as client:
+                    with client.stream(
+                        "POST",
+                        f"{API_BASE_URL}/api/chat/stream",
+                        json={"message": active_prompt, "case_id": ss.case_id}
+                    ) as response:
+                        for line in response.iter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            raw_event = line[6:].strip()
+                            if not raw_event:
+                                continue
+                            try:
+                                event = json.loads(raw_event)
+                                ev_type = event.get("type")
+                                if ev_type == "delta":
+                                    delta = event.get("delta", "")
+                                    full_response += delta
+                                    placeholder.markdown(full_response + "▌")
+                                elif ev_type == "tool_start":
+                                    tools_used.append(event.get("tool", "tool"))
+                            except json.JSONDecodeError:
+                                continue
+
+                placeholder.markdown(full_response)
+                ss.messages.append({"role": "assistant", "content": full_response})
+
+                # Si el modelo ejecuto herramientas que modificaron tabla o cajas, recargar
+                if tools_used or ts.version(ss.case_id) != ss.table_version or bs.version(ss.case_id) != ss.boxes_version:
+                    ss.table_version = ts.version(ss.case_id)
+                    ss.boxes_version = bs.version(ss.case_id)
+                    ss.df = ts.to_df(ts.load(ss.case_id))
+                    ss.boxes = bs.load(ss.case_id).get("boxes", [])
+                    ss.editor_gen += 1
+                    st.rerun()
+
+            except Exception as e:
+                placeholder.error(f"Fallo en la comunicacion con el Co-Pilot: {e}")
+
+    # JavaScript auto-scroll para que el chat baje automaticamente
+    components.html(
+        """
+        <script>
+        const main = window.parent.document.querySelector('[data-testid="stMain"]');
+        if (main) main.scrollTo({top: main.scrollHeight, behavior: 'smooth'});
+        </script>
+        """,
+        height=0
+    )
+
+# =============================================================================
+# WATCHER EN SEGUNDO PLANO
+# =============================================================================
+@st.fragment(run_every=1)
+def watcher():
+    if ts.version(ss.case_id) != ss.table_version or bs.version(ss.case_id) != ss.boxes_version:
+        st.rerun()
+
+watcher()

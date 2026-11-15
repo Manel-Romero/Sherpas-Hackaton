@@ -6,7 +6,10 @@ from backend.app.tools.copilot_tools import (
     manage_task,
     update_dashboard_metric,
     display_chart,
-    inspect_case_data
+    inspect_case_data,
+    modify_table_cell,
+    add_table_column,
+    manage_box
 )
 
 def test_manage_task_tool():
@@ -114,3 +117,77 @@ async def test_inspect_case_data_tool():
 
     assert "Wealth tier" in res_persona
     assert "EMERGING" in res_persona
+
+def test_modify_table_cell_and_add_column_tools(tmp_path, monkeypatch):
+    # Comprueba la modificacion de celdas y creacion de columnas en la tabla financiera mensual
+    test_case = "test-case-table-tools"
+    table_file = tmp_path / "table.json"
+    monkeypatch.setenv("TABLE_JSON", str(table_file))
+
+    from frontend import table_store as ts
+    # Inicializar tabla de prueba
+    ts.initialize_default_table(
+        case_id=test_case,
+        monthly_income=5000.0,
+        monthly_expenses=3500.0,
+        total_debt=10000.0,
+        net_worth=50000.0
+    )
+
+    config = RunnableConfig(configurable={"session_id": "s_table", "case_id": test_case})
+
+    # 1. Modificar celda de gastos para un mes
+    res_mod = modify_table_cell.invoke({
+        "date": "2026-03",
+        "column": "Gastos_Fijos",
+        "value": 5500.0
+    }, config=config)
+
+    assert "actualizada a 5500.0" in res_mod
+    data = ts.load(case_id=test_case)
+    row_mar = next((r for r in data["rows"] if r["date"] == "2026-03"), None)
+    assert row_mar is not None
+    assert row_mar["Gastos_Fijos"] == 5500.0
+
+    # 2. Anadir nueva columna
+    res_col = add_table_column.invoke({
+        "name": "Gasto_Imprevisto_Accidente",
+        "default": 0.0
+    }, config=config)
+
+    assert "anadida con exito" in res_col
+    data_after = ts.load(case_id=test_case)
+    assert "Gasto_Imprevisto_Accidente" in data_after["columns"]
+
+def test_manage_box_tool(tmp_path, monkeypatch):
+    # Comprueba la gestion de tarjetas del panel vertical (anadir y eliminar)
+    test_case = "test-case-box-tools"
+    boxes_file = tmp_path / "boxes.json"
+    monkeypatch.setenv("BOXES_JSON", str(boxes_file))
+
+    config = RunnableConfig(configurable={"session_id": "s_boxes", "case_id": test_case})
+
+    # 1. Anadir tarjeta
+    res_add = manage_box.invoke({
+        "action": "add",
+        "title": "Fondo de Emergencia Requerido",
+        "content": "Desembolso de 2.000 EUR cubierto con fondo de liquidez",
+        "category": "prioritaria"
+    }, config=config)
+
+    assert "guardada en el panel vertical" in res_add
+    from frontend import boxes_store as bs
+    data = bs.load(case_id=test_case)
+    assert len(data["boxes"]) == 1
+    assert data["boxes"][0]["title"] == "Fondo de Emergencia Requerido"
+
+    # 2. Eliminar tarjeta
+    res_del = manage_box.invoke({
+        "action": "delete",
+        "title": "Fondo de Emergencia Requerido"
+    }, config=config)
+
+    assert "eliminada del panel vertical" in res_del
+    data_after = bs.load(case_id=test_case)
+    assert len(data_after["boxes"]) == 0
+
