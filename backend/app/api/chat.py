@@ -1,0 +1,185 @@
+import json
+from fastapi import APIRouter, HTTPException
+from sse_starlette.sse import EventSourceResponse, ServerSentEvent
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from backend.app.models.chat import ChatRequest, ChatResponse, ToolExecutionLog
+from backend.app.graphs.copilot_graph import copilot_graph
+from backend.app.services.session_store import session_store
+
+router = APIRouter(prefix="/chat", tags=["Chat Co-Pilot"])
+
+@router.post("", response_model=ChatResponse)
+async def send_chat_message(request: ChatRequest):
+    """
+    Bucle interactivo del Co-Pilot financiero (Respuesta JSON estandar):
+    Recibe la consulta del usuario, inyecta el estado resumido del dashboard,
+    el plan y las directrices empaticas, y ejecuta el ciclo ReAct con herramientas MCP.
+    """
+    case_id = request.case_id
+    session_id = request.session_id or "default"
+
+    session = session_store.get_or_create(session_id, case_id)
+    session.pending_charts.clear()
+
+    # Mensaje humano para el estado del grafo
+    user_msg = HumanMessage(content=request.message)
+    input_state = {
+        "case_id": case_id,
+        "session_id": session_id,
+        "messages": [user_msg]
+    }
+
+    # Configuracion de ejecucion aislada por sesion y caso (sin variables globales)
+    run_config = {
+        "configurable": {
+            "session_id": session_id,
+            "case_id": case_id
+        }
+    }
+
+    try:
+        # Ejecutar LangGraph ciclico de forma asincrona
+        result = await copilot_graph.ainvoke(input_state, config=run_config)
+        messages = result.get("messages", [])
+
+        # Extraer respuesta y ejecucion de herramientas
+        reply_content = ""
+        tool_logs: list[ToolExecutionLog] = []
+
+        for m in messages:
+            if isinstance(m, ToolMessage):
+                tool_logs.append(
+                    ToolExecutionLog(
+                        tool=getattr(m, "name", "tool"),
+                        args={},
+                        result=m.content
+                    )
+                )
+            elif isinstance(m, AIMessage):
+                if m.content:
+                    reply_content = str(m.content)
+
+        if not reply_content:
+            raise HTTPException(
+                status_code=502,
+                detail="El modelo de chat finalizo su turno sin emitir una respuesta de texto."
+            )
+
+        # Capturar cualquier grafico pendiente generado por la herramienta display_chart
+        chart_to_render = session.pending_charts[-1] if session.pending_charts else None
+
+        return ChatResponse(
+            reply=reply_content,
+            tools_executed=tool_logs,
+            tasks=session.tasks,
+            dashboard=session.dashboard,
+            chart_to_render=chart_to_render
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=502,
+            detail=f"Fallo en la comunicacion con el modelo del Co-Pilot: {str(e)}"
+        )
+
+@router.post("/stream")
+async def send_chat_message_stream(request: ChatRequest):
+    """
+    Bucle interactivo con Server-Sent Events (SSE) en tiempo real:
+    Emite eventos on_tool_start, on_tool_end, tokens de texto y el estado mutado
+    de la interfaz para que el frontend pinte los cambios en vivo.
+    """
+    case_id = request.case_id
+    session_id = request.session_id or "default"
+
+    session = session_store.get_or_create(session_id, case_id)
+    session.pending_charts.clear()
+
+    user_msg = HumanMessage(content=request.message)
+    input_state = {
+        "case_id": case_id,
+        "session_id": session_id,
+        "messages": [user_msg]
+    }
+    run_config = {
+        "configurable": {
+            "session_id": session_id,
+            "case_id": case_id
+        }
+    }
+
+    async def event_generator():
+        try:
+            full_reply_chunks = []
+            async for event in copilot_graph.astream_events(input_state, config=run_config, version="v2"):
+                kind = event["event"]
+
+                # Notificar a la UI el inicio de ejecucion de una herramienta MCP
+                if kind == "on_tool_start":
+                    yield ServerSentEvent(
+                        data=json.dumps({
+                            "type": "tool_start",
+                            "tool": event.get("name"),
+                            "input": event.get("data", {}).get("input")
+                        }, ensure_ascii=False),
+                        event="tool_start"
+                    )
+
+                # Notificar a la UI el fin de ejecucion de una herramienta MCP
+                elif kind == "on_tool_end":
+                    yield ServerSentEvent(
+                        data=json.dumps({
+                            "type": "tool_end",
+                            "tool": event.get("name"),
+                            "output": event.get("data", {}).get("output")
+                        }, ensure_ascii=False),
+                        event="tool_end"
+                    )
+
+                # Emitir token de texto del modelo en streaming
+                elif kind == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content") and chunk.content:
+                        text_piece = str(chunk.content)
+                        full_reply_chunks.append(text_piece)
+                        yield ServerSentEvent(
+                            data=json.dumps({
+                                "type": "token",
+                                "content": text_piece
+                            }, ensure_ascii=False),
+                            event="token"
+                        )
+
+            # Emitir el estado actualizado final de la UI (tareas, dashboard, graficos)
+            chart_to_render = session.pending_charts[-1] if session.pending_charts else None
+            yield ServerSentEvent(
+                data=json.dumps({
+                    "type": "state",
+                    "tasks": [t.model_dump() for t in session.tasks],
+                    "dashboard": session.dashboard.model_dump() if session.dashboard else None,
+                    "chart_to_render": chart_to_render,
+                    "full_reply": "".join(full_reply_chunks)
+                }, ensure_ascii=False),
+                event="state"
+            )
+
+            # Fin del stream
+            yield ServerSentEvent(
+                data=json.dumps({"type": "done"}, ensure_ascii=False),
+                event="done"
+            )
+
+        except Exception as e:
+            yield ServerSentEvent(
+                data=json.dumps({
+                    "type": "error",
+                    "detail": str(e)
+                }, ensure_ascii=False),
+                event="error"
+            )
+
+    return EventSourceResponse(event_generator())
