@@ -17,8 +17,5 @@ build/
 .idea/
 .vscode/
 
-# AISLOP
-.aislop/
-
 # Runtime data
 data/

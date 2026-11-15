@@ -323,8 +323,9 @@ if active_prompt:
             full_response = ""
             tools_used = []
 
+            ss.is_streaming = True
             try:
-                with httpx.Client(timeout=60.0) as client:
+                with httpx.Client(timeout=90.0) as client:
                     with client.stream(
                         "POST",
                         f"{API_BASE_URL}/api/chat/stream",
@@ -339,29 +340,44 @@ if active_prompt:
                             try:
                                 event = json.loads(raw_event)
                                 ev_type = event.get("type")
-                                if ev_type == "delta":
-                                    delta = event.get("delta", "")
+                                if ev_type in ("token", "delta"):
+                                    delta = event.get("content") or event.get("delta", "")
                                     full_response += delta
                                     placeholder.markdown(full_response + "▌")
                                 elif ev_type == "tool_start":
-                                    tools_used.append(event.get("tool", "tool"))
+                                    tool_name = event.get("tool", "herramienta")
+                                    tools_used.append(tool_name)
+                                    status_info = f"\n\n*⚡ Ejecutando accion: {tool_name}...*"
+                                    placeholder.markdown((full_response + status_info) if full_response else f"*⚡ Ejecutando accion: {tool_name}...*")
+                                elif ev_type == "tool_end":
+                                    placeholder.markdown(full_response + "▌" if full_response else "*Procesando respuesta...*")
+                                elif ev_type == "state":
+                                    state_reply = event.get("full_reply", "")
+                                    if state_reply and not full_response:
+                                        full_response = state_reply
+                                elif ev_type == "error":
+                                    err_detail = event.get("detail", "Error en el servidor")
+                                    placeholder.error(f"Error en el servidor: {err_detail}")
                             except json.JSONDecodeError:
                                 continue
 
-                placeholder.markdown(full_response)
-                ss.messages.append({"role": "assistant", "content": full_response})
+                if full_response:
+                    placeholder.markdown(full_response)
+                    ss.messages.append({"role": "assistant", "content": full_response})
+                else:
+                    placeholder.warning("El Co-Pilot no emitio respuesta de texto.")
 
-                # Si el modelo ejecuto herramientas que modificaron tabla o cajas, recargar
-                if tools_used or ts.version(ss.case_id) != ss.table_version or bs.version(ss.case_id) != ss.boxes_version:
-                    ss.table_version = ts.version(ss.case_id)
-                    ss.boxes_version = bs.version(ss.case_id)
-                    ss.df = ts.to_df(ts.load(ss.case_id))
-                    ss.boxes = bs.load(ss.case_id).get("boxes", [])
-                    ss.editor_gen += 1
-                    st.rerun()
+                # Sincronizar estado interno de tabla y cajas para que las otras pestanas se actualicen
+                ss.table_version = ts.version(ss.case_id)
+                ss.boxes_version = bs.version(ss.case_id)
+                ss.df = ts.to_df(ts.load(ss.case_id))
+                ss.boxes = bs.load(ss.case_id).get("boxes", [])
+                ss.editor_gen += 1
 
             except Exception as e:
                 placeholder.error(f"Fallo en la comunicacion con el Co-Pilot: {e}")
+            finally:
+                ss.is_streaming = False
 
     # JavaScript auto-scroll para que el chat baje automaticamente
     st.html(
@@ -377,9 +393,16 @@ if active_prompt:
 # =============================================================================
 # WATCHER EN SEGUNDO PLANO
 # =============================================================================
-@st.fragment(run_every=1)
+@st.fragment(run_every=2)
 def watcher():
+    # Evitar recargas si hay una consulta de chat procesandose
+    if ss.get("is_streaming", False):
+        return
     if ts.version(ss.case_id) != ss.table_version or bs.version(ss.case_id) != ss.boxes_version:
+        ss.table_version = ts.version(ss.case_id)
+        ss.boxes_version = bs.version(ss.case_id)
+        ss.df = ts.to_df(ts.load(ss.case_id))
+        ss.boxes = bs.load(ss.case_id).get("boxes", [])
         st.rerun()
 
 watcher()

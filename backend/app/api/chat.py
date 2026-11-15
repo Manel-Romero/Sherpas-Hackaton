@@ -120,23 +120,34 @@ async def send_chat_message_stream(request: ChatRequest):
 
                 # Notificar a la UI el inicio de ejecucion de una herramienta MCP
                 if kind == "on_tool_start":
+                    input_data = event.get("data", {}).get("input")
+                    if not isinstance(input_data, (dict, list, str, int, float, bool)) and input_data is not None:
+                        input_data = str(input_data)
                     yield ServerSentEvent(
                         data=json.dumps({
                             "type": "tool_start",
                             "tool": event.get("name"),
-                            "input": event.get("data", {}).get("input")
-                        }, ensure_ascii=False),
+                            "input": input_data
+                        }, ensure_ascii=False, default=str),
                         event="tool_start"
                     )
 
                 # Notificar a la UI el fin de ejecucion de una herramienta MCP
                 elif kind == "on_tool_end":
+                    output_data = event.get("data", {}).get("output")
+                    if hasattr(output_data, "content"):
+                        output_str = str(output_data.content)
+                    elif isinstance(output_data, (dict, list, str, int, float, bool)) or output_data is None:
+                        output_str = output_data
+                    else:
+                        output_str = str(output_data)
+
                     yield ServerSentEvent(
                         data=json.dumps({
                             "type": "tool_end",
                             "tool": event.get("name"),
-                            "output": event.get("data", {}).get("output")
-                        }, ensure_ascii=False),
+                            "output": output_str
+                        }, ensure_ascii=False, default=str),
                         event="tool_end"
                     )
 
@@ -144,15 +155,26 @@ async def send_chat_message_stream(request: ChatRequest):
                 elif kind == "on_chat_model_stream":
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
-                        text_piece = str(chunk.content)
-                        full_reply_chunks.append(text_piece)
-                        yield ServerSentEvent(
-                            data=json.dumps({
-                                "type": "token",
-                                "content": text_piece
-                            }, ensure_ascii=False),
-                            event="token"
-                        )
+                        if isinstance(chunk.content, str):
+                            text_piece = chunk.content
+                        elif isinstance(chunk.content, list):
+                            text_piece = "".join(
+                                item.get("text", "") if isinstance(item, dict) else str(item)
+                                for item in chunk.content
+                            )
+                        else:
+                            text_piece = str(chunk.content)
+
+                        if text_piece:
+                            full_reply_chunks.append(text_piece)
+                            yield ServerSentEvent(
+                                data=json.dumps({
+                                    "type": "token",
+                                    "content": text_piece,
+                                    "delta": text_piece
+                                }, ensure_ascii=False, default=str),
+                                event="token"
+                            )
 
             # Emitir el estado actualizado final de la UI (tareas, dashboard, graficos)
             chart_to_render = session.pending_charts[-1] if session.pending_charts else None
@@ -163,13 +185,13 @@ async def send_chat_message_stream(request: ChatRequest):
                     "dashboard": session.dashboard.model_dump() if session.dashboard else None,
                     "chart_to_render": chart_to_render,
                     "full_reply": "".join(full_reply_chunks)
-                }, ensure_ascii=False),
+                }, ensure_ascii=False, default=str),
                 event="state"
             )
 
             # Fin del stream
             yield ServerSentEvent(
-                data=json.dumps({"type": "done"}, ensure_ascii=False),
+                data=json.dumps({"type": "done"}, ensure_ascii=False, default=str),
                 event="done"
             )
 
@@ -178,7 +200,7 @@ async def send_chat_message_stream(request: ChatRequest):
                 data=json.dumps({
                     "type": "error",
                     "detail": str(e)
-                }, ensure_ascii=False),
+                }, ensure_ascii=False, default=str),
                 event="error"
             )
 
