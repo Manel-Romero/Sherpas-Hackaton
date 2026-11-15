@@ -19,7 +19,7 @@ El proyecto convierte los informes financieros estaticos generados por Sherpas (
 ```mermaid
 flowchart TD
     subgraph Ingesta["1. Ingesta de datos"]
-        Files["Ficheros del caso (cases/{id}/*.json + persona.md)"] --> CaseRepo["CaseRepository"]
+        MCPServer["Servidor MCP (Sherpas oficial o dev-tools local)"] -->|StreamableHTTP| CaseRepo["CaseRepository"]
     end
 
     subgraph Inicializacion["2. Inicializacion del caso (init_graph)"]
@@ -64,7 +64,7 @@ flowchart TD
 ## 3. Pipeline de procesamiento
 
 ### 3.1. Ingesta (`CaseRepository`)
-Los datos de cada hogar provienen de la carpeta local `cases/{case_id}/`, que incluye `financial-health.json`, `investment-analysis.json` y `persona.md`. La capa de repositorio permite leer los casos directamente del disco sin depender de la conectividad o la caducidad de tokens, manteniendo compatibilidad con la API MCP remota si se configuran credenciales.
+Los datos de cada hogar se consumen de forma estricta y exclusiva a traves del protocolo MCP (StreamableHTTP), apuntando a `MCP_URL`. No existen fallbacks locales ni datos inventados en el backend: si el servidor MCP no responde, se emite un error HTTP 502 claro y directo. Para pruebas en local o desarrollo offline, se utiliza el servidor clon local `dev-tools/mcp_server.py`, permitiendo cambiar entre entorno local y remoto unicamente modificando `MCP_URL` en `.env`.
 
 ### 3.2. Inicializador maestro (`init_graph`)
 Se ejecuta una unica vez por caso seleccionado. Envia el caso integro (~45.000 tokens) a un modelo de razonamiento (`gpt-5-mini` o `gemini-3.5-flash-lite`) para generar en una sola pasada:
@@ -123,7 +123,7 @@ backend/
 │   │   ├── dashboard.py          # Estado del dashboard y metricas tabulares
 │   │   └── chat.py               # Mensajes de chat y registros de herramientas
 │   ├── services/
-│   │   ├── case_repository.py    # Carga de casos desde disco / fallback
+│   │   ├── case_repository.py    # Consumo exclusivo del servidor MCP via StreamableHTTP
 │   │   ├── llm_factory.py        # Configuracion de clientes LLM sobre el proxy de Sherpas
 │   │   └── session_store.py      # Almacen de estado en memoria por sesion
 │   ├── tools/
@@ -163,23 +163,35 @@ backend/
 
 ## 8. Puesta en marcha
 
-1. Comprobar la presencia del archivo `.env` en la raiz del repositorio con las credenciales del equipo:
+1. Comprobar la presencia del archivo `.env` en la raiz del repositorio con las credenciales y modelos:
    ```env
-   LLM_PROXY_URL=https://llm-hackathon.sherpaswealth.com/v1
-   TEAM_KEY=tu-team-key-aqui
-   FAST_MODEL=gemini-3.5-flash-lite
-   REASONING_MODEL=gpt-5-mini
-   CHAT_MODEL=gpt-5-mini
+   # Proxy LLM (OpenAI-compatible: Sherpas o OpenRouter)
+   LLM_PROXY_URL=https://openrouter.ai/api/v1
+   TEAM_KEY=tu-api-key-aqui
+   FAST_MODEL=openai/gpt-4o-mini
+   REASONING_MODEL=openai/gpt-4o-mini
+   CHAT_MODEL=openai/gpt-4o-mini
+
+   # Servidor MCP de casos (Servidor oficial de Sherpas o clon local)
+   MCP_URL=https://mcp-hackathon.sherpaswealth.com/mcp
+   MCP_TOKEN=tu-token-mcp-aqui
+
    PORT=8000
    HOST=0.0.0.0
    CORS_ORIGINS=*
    ```
 
-2. Levantar el servidor:
+2. (Opcional) Levantar el servidor MCP local para pruebas offline:
+   ```bash
+   .venv/bin/python dev-tools/mcp_server.py --port 8001
+   ```
+   *Y en `.env` fijar `MCP_URL=http://127.0.0.1:8001/mcp`.*
+
+3. Levantar el servidor backend FastAPI:
    ```bash
    .venv/bin/uvicorn backend.app.main:app --reload --port 8000
    ```
 
-3. Acceso a la documentacion interactiva:
+4. Acceso a la documentacion interactiva:
    - Swagger UI: `http://localhost:8000/docs`
    - ReDoc: `http://localhost:8000/redoc`
