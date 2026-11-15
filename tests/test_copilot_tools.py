@@ -1,0 +1,116 @@
+import pytest
+from langchain_core.runnables import RunnableConfig
+from backend.app.services.session_store import session_store
+from backend.app.models.dashboard import DashboardState
+from backend.app.tools.copilot_tools import (
+    manage_task,
+    update_dashboard_metric,
+    display_chart,
+    inspect_case_data
+)
+
+def test_manage_task_tool():
+    # Comprueba la gestion de tareas con aislamiento de sesion via RunnableConfig
+    config_1 = RunnableConfig(configurable={"session_id": "sesion_a", "case_id": "michael-carter"})
+    config_2 = RunnableConfig(configurable={"session_id": "sesion_b", "case_id": "michael-carter"})
+
+    # 1. Anadir tarea en sesion A
+    res_add = manage_task.invoke({
+        "action": "add",
+        "task_id": "t1",
+        "title": "Pagar tarjeta de credito",
+        "description": "Liquidar balance con saldo de liquidez",
+        "week": 1,
+        "impact_metric": "Intereses ahorrados",
+        "impact_value": "$700"
+    }, config=config_1)
+
+    assert "anadida" in res_add.lower()
+    
+    session_a = session_store.get_or_create("sesion_a", "michael-carter")
+    session_b = session_store.get_or_create("sesion_b", "michael-carter")
+    
+    # Comprobar aislamiento: sesion A tiene la tarea, sesion B no
+    assert len(session_a.tasks) == 1
+    assert len(session_b.tasks) == 0
+    assert session_a.tasks[0].id == "t1"
+    assert session_a.tasks[0].status == "pending"
+
+    # 2. Completar tarea en sesion A
+    res_comp = manage_task.invoke({"action": "complete", "task_id": "t1"}, config=config_1)
+    assert "completada" in res_comp.lower()
+    assert session_a.tasks[0].status == "completed"
+
+    # 3. Eliminar tarea en sesion A
+    res_del = manage_task.invoke({"action": "delete", "task_id": "t1"}, config=config_1)
+    assert "eliminada" in res_del.lower()
+    assert len(session_a.tasks) == 0
+
+def test_update_dashboard_metric_tool():
+    # Comprueba la actualizacion de metricas en el dashboard via tool
+    config = RunnableConfig(configurable={"session_id": "s_dash", "case_id": "michael-carter"})
+    session = session_store.get_or_create("s_dash", "michael-carter")
+    
+    # Inicializar dashboard base
+    session.dashboard = DashboardState(
+        case_id="michael-carter",
+        health_score=26,
+        net_worth=218500.0,
+        total_assets=247000.0,
+        total_liabilities=28500.0,
+        monthly_income=15000.0,
+        monthly_expenses=9306.0,
+        monthly_free_cashflow=5694.0
+    )
+
+    # Actualizar patrimonio neto
+    res_up = update_dashboard_metric.invoke({
+        "key": "net_worth",
+        "value": 230000.0,
+        "reason": "Amortizacion anticipada"
+    }, config=config)
+
+    assert "actualizada a 230000.0" in res_up
+    assert session.dashboard.net_worth == 230000.0
+
+def test_display_chart_tool():
+    # Comprueba la generacion de graficos para el frontend
+    config = RunnableConfig(configurable={"session_id": "s_chart", "case_id": "michael-carter"})
+    session = session_store.get_or_create("s_chart", "michael-carter")
+
+    res = display_chart.invoke({
+        "chart_type": "bar",
+        "title": "Comparativa de Ahorro",
+        "categories": ["Mes 1", "Mes 2", "Mes 3"],
+        "values": [300.0, 450.0, 600.0]
+    }, config=config)
+
+    assert "enviado para visualizacion" in res
+    assert len(session.pending_charts) == 1
+    chart = session.pending_charts[0]
+    assert chart["type"] == "bar"
+    assert chart["title"] == "Comparativa de Ahorro"
+    assert len(chart["labels"]) == 3
+
+@pytest.mark.asyncio
+async def test_inspect_case_data_tool():
+    # Comprueba la herramienta de consulta granular al servidor MCP
+    config = RunnableConfig(configurable={"session_id": "s_mcp", "case_id": "michael-carter"})
+
+    # Consultar seccion de score en financial-health
+    res_score = await inspect_case_data.ainvoke({
+        "part": "financial-health",
+        "section": "score"
+    }, config=config)
+
+    assert "published_score" in res_score
+    assert "26" in res_score
+
+    # Consultar persona dimension D0
+    res_persona = await inspect_case_data.ainvoke({
+        "part": "persona",
+        "section": "D0"
+    }, config=config)
+
+    assert "Wealth tier" in res_persona
+    assert "EMERGING" in res_persona
