@@ -10,7 +10,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import httpx
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 
 try:
@@ -365,14 +364,14 @@ if active_prompt:
                 placeholder.error(f"Fallo en la comunicacion con el Co-Pilot: {e}")
 
     # JavaScript auto-scroll para que el chat baje automaticamente
-    components.html(
+    st.html(
         """
         <script>
-        const main = window.parent.document.querySelector('[data-testid="stMain"]');
+        const main = document.querySelector('[data-testid="stMain"]');
         if (main) main.scrollTo({top: main.scrollHeight, behavior: 'smooth'});
         </script>
         """,
-        height=0
+        unsafe_allow_javascript=True
     )
 
 # =============================================================================
