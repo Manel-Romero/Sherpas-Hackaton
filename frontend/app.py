@@ -1,13 +1,27 @@
 import os
+import sys
 import json
+from pathlib import Path
+
+# Asegurar que el directorio raiz del proyecto este siempre en sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import httpx
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
-from frontend.style import style
-from frontend import table_store as ts
-from frontend import boxes_store as bs
+try:
+    from frontend.style import style
+    from frontend import table_store as ts
+    from frontend import boxes_store as bs
+except ImportError:
+    from style import style
+    import table_store as ts
+    import boxes_store as bs
+
 
 # Configuracion de pagina completa en modo ancho
 st.set_page_config(page_title="Sherpas Wealth Co-Pilot", page_icon="🧭", layout="wide")
