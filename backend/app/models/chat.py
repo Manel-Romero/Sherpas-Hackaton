@@ -20,6 +20,7 @@ class ChatRequest(BaseModel):
     message: str
     case_id: str
     session_id: Optional[str] = "default"
+    history: Optional[list[dict[str, str]]] = None
 
 class ChatResponse(BaseModel):
     # Respuesta completa del Co-Pilot incluyendo cambios en el estado

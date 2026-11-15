@@ -17,24 +17,44 @@ async def send_chat_message(request: ChatRequest):
     """
     case_id = request.case_id
     session_id = request.session_id or "default"
+    thread_id = f"{case_id}_{session_id}"
 
     session = session_store.get_or_create(session_id, case_id)
     session.pending_charts.clear()
 
-    # Mensaje humano para el estado del grafo
-    user_msg = HumanMessage(content=request.message)
-    input_state = {
-        "case_id": case_id,
-        "session_id": session_id,
-        "messages": [user_msg]
-    }
-
-    # Configuracion de ejecucion aislada por sesion y caso (sin variables globales)
+    # Configuracion de ejecucion con thread_id para checkpointer de memoria
     run_config = {
         "configurable": {
+            "thread_id": thread_id,
             "session_id": session_id,
             "case_id": case_id
         }
+    }
+
+    user_msg = HumanMessage(content=request.message)
+    messages_to_send = []
+
+    try:
+        current_state = copilot_graph.get_state(run_config)
+    except Exception:
+        current_state = None
+
+    if (not current_state or not current_state.values.get("messages")) and request.history:
+        for h in request.history:
+            role = h.get("role")
+            content = h.get("content", "")
+            if not content:
+                continue
+            if role == "user":
+                messages_to_send.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages_to_send.append(AIMessage(content=content))
+
+    messages_to_send.append(user_msg)
+    input_state = {
+        "case_id": case_id,
+        "session_id": session_id,
+        "messages": messages_to_send
     }
 
     try:
@@ -95,21 +115,44 @@ async def send_chat_message_stream(request: ChatRequest):
     """
     case_id = request.case_id
     session_id = request.session_id or "default"
+    thread_id = f"{case_id}_{session_id}"
 
     session = session_store.get_or_create(session_id, case_id)
     session.pending_charts.clear()
 
-    user_msg = HumanMessage(content=request.message)
-    input_state = {
-        "case_id": case_id,
-        "session_id": session_id,
-        "messages": [user_msg]
-    }
+    # Configuracion de ejecucion con thread_id para checkpointer de memoria
     run_config = {
         "configurable": {
+            "thread_id": thread_id,
             "session_id": session_id,
             "case_id": case_id
         }
+    }
+
+    user_msg = HumanMessage(content=request.message)
+    messages_to_send = []
+
+    try:
+        current_state = copilot_graph.get_state(run_config)
+    except Exception:
+        current_state = None
+
+    if (not current_state or not current_state.values.get("messages")) and request.history:
+        for h in request.history:
+            role = h.get("role")
+            content = h.get("content", "")
+            if not content:
+                continue
+            if role == "user":
+                messages_to_send.append(HumanMessage(content=content))
+            elif role == "assistant":
+                messages_to_send.append(AIMessage(content=content))
+
+    messages_to_send.append(user_msg)
+    input_state = {
+        "case_id": case_id,
+        "session_id": session_id,
+        "messages": messages_to_send
     }
 
     async def event_generator():

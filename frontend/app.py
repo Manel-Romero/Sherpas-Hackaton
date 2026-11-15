@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import time
 from pathlib import Path
 
 # Asegurar que el directorio raiz del proyecto este siempre en sys.path
@@ -71,6 +72,8 @@ ss = st.session_state
 
 if "case_id" not in ss:
     ss.case_id = "michael-carter"
+if "session_id" not in ss:
+    ss.session_id = f"sess_{ss.case_id}"
 if "messages" not in ss:
     ss.messages = []
 if "cases_list" not in ss:
@@ -109,6 +112,7 @@ def initialize_case_plan(case_id: str):
             if r.status_code == 200:
                 data = r.json()
                 mp = data.get("master_plan", {})
+                ss.session_id = f"sess_{case_id}_{int(time.time())}"
                 ss.messages = [
                     {
                         "role": "assistant",
@@ -158,6 +162,7 @@ with head_col1:
     )
     if selected_case != ss.case_id:
         ss.case_id = selected_case
+        ss.session_id = f"sess_{selected_case}"
         ss.messages = []
         ss.df = ts.to_df(ts.load(selected_case))
         ss.boxes = bs.load(selected_case).get("boxes", [])
@@ -325,11 +330,22 @@ if active_prompt:
 
             ss.is_streaming = True
             try:
+                # Preparar historial previo de conversacion (excluyendo el mensaje que se acaba de anadir)
+                history_payload = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in ss.messages[:-1]
+                ]
+                payload = {
+                    "message": active_prompt,
+                    "case_id": ss.case_id,
+                    "session_id": ss.session_id,
+                    "history": history_payload
+                }
                 with httpx.Client(timeout=90.0) as client:
                     with client.stream(
                         "POST",
                         f"{API_BASE_URL}/api/chat/stream",
-                        json={"message": active_prompt, "case_id": ss.case_id}
+                        json=payload
                     ) as response:
                         for line in response.iter_lines():
                             if not line.startswith("data: "):

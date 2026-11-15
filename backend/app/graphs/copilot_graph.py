@@ -98,7 +98,9 @@ async def agent_node(state: CopilotState, config: Optional[RunnableConfig] = Non
     response = await llm_with_tools.ainvoke(messages, config=config)
     return {"messages": [response]}
 
-# Definicion del grafo ciclico ReAct con ToolNode nativo
+from langgraph.checkpoint.memory import MemorySaver
+
+# Definicion del grafo ciclico ReAct con ToolNode nativo y memoria persistente
 copilot_builder = StateGraph(CopilotState)
 copilot_builder.add_node("agent", agent_node)
 copilot_builder.add_node("tools", ToolNode(ALL_COPILOT_TOOLS))
@@ -109,4 +111,6 @@ copilot_builder.add_conditional_edges("agent", tools_condition, ["tools", END])
 # Desde tools volvemos ciclicamente a agent para razonar sobre los resultados
 copilot_builder.add_edge("tools", "agent")
 
-copilot_graph = copilot_builder.compile()
+# Compilacion con checkpointer de memoria para persistir la conversacion por thread_id
+copilot_checkpointer = MemorySaver()
+copilot_graph = copilot_builder.compile(checkpointer=copilot_checkpointer)
