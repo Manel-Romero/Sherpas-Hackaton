@@ -66,59 +66,33 @@ def delete_column(name: str) -> dict:
         r.pop(name, None)
     return ts.save(data)
 
-"""MCP tools for the boxes. In mcp_server.py add:
-
-    import boxes_tools
-    boxes_tools.register(mcp)
-"""
-import boxes_store as bs
-
-# ---------------- Boxes ----------------
-def _find(boxes: list[dict], title: str) -> int:
-    for i, b in enumerate(boxes):
-        if b["title"] == title:
-            return i
-    raise ValueError(f"No box titled '{title}'. Existing: {[b['title'] for b in boxes]}")
+import kanban_store as ks
 
 @mcp.tool()
-def get_boxes() -> dict:
-    """Return all boxes in order: {'boxes': [{'title': str, 'content': str}, ...]}."""
-    return bs.load()
+def get_kanban() -> dict:
+    """Return the board: {'statuses': [...], 'cards': [{'id','title','content','status'}, ...]}.
+    Cards are listed in column order. Use the ids from here for the other tools."""
+    return {"statuses": list(ks.STATUSES), **ks.load()}
 
 @mcp.tool()
-def add_box(title: str, content: str, position: int | None = None) -> dict:
-    """Add a NEW box. `position` is 1-based (1 = first); omit to append at the end.
-    Fails if a box with that title already exists."""
-    data = bs.load()
-    if any(b["title"] == title.strip() for b in data["boxes"]):
-        raise ValueError(f"A box titled '{title}' already exists. Use update_box.")
-    box = {"title": title, "content": content}
-    if position is None:
-        data["boxes"].append(box)
-    else:
-        data["boxes"].insert(max(position - 1, 0), box)
-    return bs.save(data)
+def add_card(title: str, content: str = "", status: str = "todo") -> dict:
+    """Add a card. status: 'todo', 'in_process' or 'done'. Returns the board (new card is last)."""
+    return ks.add_card(title, content, status)
 
 @mcp.tool()
-def delete_box(title: str) -> dict:
-    """Delete a box by title."""
-    data = bs.load()
-    del data["boxes"][_find(data["boxes"], title)]
-    return bs.save(data)
+def update_card(card_id: str, title: str | None = None, content: str | None = None) -> dict:
+    """Change a card's title and/or content."""
+    return ks.update_card(card_id, title, content)
 
 @mcp.tool()
-def reorder_boxes(titles: list[str]) -> dict:
-    """Put the boxes in a new order. `titles` must contain every existing title exactly once."""
-    data = bs.load()
-    by_title = {b["title"]: b for b in data["boxes"]}
-    if sorted(titles) != sorted(by_title):
-        raise ValueError(f"titles must be exactly these, in any order: {list(by_title)}")
-    return bs.save({"boxes": [by_title[t] for t in titles]})
+def move_card(card_id: str, status: str) -> dict:
+    """Move a card to 'todo', 'in_process' or 'done' (it goes to the bottom of that column)."""
+    return ks.move_card(card_id, status)
 
 @mcp.tool()
-def set_boxes(boxes: list[dict]) -> dict:
-    """Replace ALL boxes at once. Each item: {'title': str, 'content': str}. Titles must be unique."""
-    return bs.save({"boxes": boxes})
+def delete_card(card_id: str) -> dict:
+    """Delete a card."""
+    return ks.delete_card(card_id)
 
 if __name__ == "__main__":
     mcp.run()

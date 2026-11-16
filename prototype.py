@@ -2,14 +2,35 @@ import streamlit as st
 import streamlit.components.v1 as components  # needed for the auto-scroll script
 from style import style
 import table_store as ts
-import boxes_store as bs
-
-
+import kanban_store as ks
+from pathlib import Path
+import kanban_ui
+import table_ui
 
 # "wide" lets the content (and our full-width top bar) use the whole screen.
 st.set_page_config(page_title="Layouts", layout="wide")
 #Style
 st.markdown(style,unsafe_allow_html=True)
+
+
+
+def require_login() -> str:
+    if user := st.session_state.get("user"):
+        folder = Path("data") / user
+        folder.mkdir(parents=True, exist_ok=True)
+        ts.DATA_FILE = folder / "table.json"
+        ks.KANBAN_FILE = folder / "kanban.json"
+        return st.session_state.user
+    st.title("Login")
+    with st.form("login"):
+        username = st.text_input("User")
+        password = st.text_input("Password", type="password")
+        if st.form_submit_button("Log in"):
+                st.session_state.user = username.strip().lower()
+                st.rerun()
+    st.stop()          # nothing below runs until someone is logged in
+
+require_login()
 
 # =============================================================================
 # 2. STATE
@@ -25,69 +46,16 @@ ss = st.session_state
 if "messages" not in ss:
     ss.messages = []
 
-if "table_version" not in ss or ts.version() != ss.table_version:
-    ss.table_version = ts.version()
-    ss.df = ts.to_df(ts.load())
-    ss.editor_gen = ss.get("editor_gen", 0) + 1   # new key -> editor resets
-    
-if "boxes_version" not in ss or bs.version() != ss.boxes_version:
-    ss.boxes_version = bs.version()
-    ss.boxes = bs.load()["boxes"]
-
-# =============================================================================
-# 3. COMPONENTS
-# =============================================================================
-
-def box(title: str, content: str = "Vacío"):
-    """Draw one box."""
-    with st.container():
-        # Invisible marker: the CSS above looks for it to know "this container
-        # is a box" and gives it the card style.
-        st.markdown('<span class="box-marker"></span>', unsafe_allow_html=True)
-
-        # Two columns: wide one for the title, narrow one for the button
-        head, btn = st.columns([20, 1])
-        head.subheader(title)
-        btn.button(
-            "✕",
-            key=f"remove_{title}",     # each button needs a unique key
-            on_click=remove_box,       # runs remove_box(...) when clicked
-            args=(title,),             # ...with this box's title
-        )
-
-        st.write(content)     # <- put your own content here
-
-def remove_box(title: str):
-    data = bs.load()
-    data["boxes"] = [b for b in data["boxes"] if b["title"] != title]
-    bs.save(data)
-
-def add_column():
-    with st.popover("➕ Add column"):
-        with st.form("add_col", clear_on_submit=True):
-            name = st.text_input("Column name")
-            default = st.number_input("Default value", value=0.0)
-            if st.form_submit_button("Add") and name.strip():
-                try:
-                    table = ts.load()
-                    table["columns"].append(name.strip())
-                    for r in table["rows"]:
-                        r[name.strip()] = default
-                    ts.save(table)
-                    st.rerun()
-                except ValueError as e:
-                    st.error(str(e))
-        
+table_ui.refresh()
+      
 # =============================================================================
 # THE THREE MODES (TABS)
 # =============================================================================
 
-vertical, table, chat = st.tabs(["Vertical","Table", "Chat"])
+kanban, table, chat = st.tabs(["Kanban", "Table", "Chat"])
 
-# --- Vertical mode: the boxes, stacked ---
-with vertical:
-    for b in ss.boxes:
-        box(b["title"], b["content"] or "Vacío")
+with kanban:
+    kanban_ui.render()
 
 # --- Chat mode: the full conversation so far ---
 with chat:
@@ -97,42 +65,7 @@ with chat:
 
 # ---- Table: drawn once per real change ----
 with table:
-    add_column()
-
-    columns = list(st.session_state.df.columns[1:])
-    config = {"date": st.column_config.TextColumn(
-        "Month (YYYY-MM)",
-        required=True,
-        default=ts.default_month(ts.load()),   # <- new rows start with the next month
-    )}
-    for c in columns:
-        config[c] = st.column_config.NumberColumn(c)
-    
-    edited = st.data_editor(
-        st.session_state.df,
-        key=f"editor-{st.session_state.editor_gen}",
-        num_rows="dynamic",
-        column_config=config,
-        hide_index=True,
-    )
-
-    try:
-        new = ts.from_df(edited, columns)
-        current = ts.load()
-        if new != current:
-            row_added = len(new["rows"]) > len(current["rows"])
-            ts.save(new)
-            st.session_state.table_version = ts.version()   # our own save
-            if row_added:
-                # Rebuild the base table and reset the editor, so the NEXT new row
-                # gets the next month instead of repeating this one
-                st.session_state.df = ts.to_df(new)
-                st.session_state.editor_gen += 1
-                st.rerun()
-    except ValueError as e:
-        st.error(str(e))
-
-
+    table_ui.render()
 # =============================================================================
 # CHAT INPUT
 # =============================================================================
@@ -181,7 +114,7 @@ if new_message:
 
 @st.fragment(run_every=1)
 def watcher():
-    if ts.version() != ss.table_version or bs.version() != ss.boxes_version:
-        st.rerun()  # reruns the whole app, which reloads the table
+    if table_ui.changed() or kanban_ui.changed():
+        st.rerun()
 
 watcher()

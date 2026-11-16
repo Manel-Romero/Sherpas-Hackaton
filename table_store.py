@@ -12,7 +12,6 @@ import os
 import re
 import threading
 from pathlib import Path
-
 import pandas as pd
 
 DATA_FILE = Path(os.environ.get("TABLE_JSON", Path(__file__).with_name("table.json")))
