@@ -7,15 +7,31 @@
 node_modules/
 .venv/
 venv/
-**__pycache__/
+env/
 dist/
 build/
 .next/
+
+# Caches and bytecode
+__pycache__/
+**__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# AISLOP
+.aislop/
+
+# Runtime data
+data/
 
 # OS and editors
 .DS_Store
 .idea/
 .vscode/
-
-# Runtime data
-data/
+*.swp
+*.swo
