@@ -746,43 +746,18 @@ _board = components.declare_component("kanban_board", path=str(_FRONTEND))
 def notify_agent_of_kanban_change(
     action: str,
     card: dict,
-    new_status: str | None = None,
-    old_status: str | None = None,
     case_id: str = "michael-carter",
     session_id: str = "default"
 ):
-    """Envia al agente Co-Pilot la modificacion en el tablero Kanban, muestra notificaciones
-
-    y pide al agente evaluar enhorabuena o ajustes pertinentes en el plan financiero.
-    """
+    """Consulta al Co-Pilot cuando el usuario pide explicitamente hablar sobre un elemento anadido."""
     title = card.get("title", "Tarea")
     impact = card.get("impact", "")
-    category = card.get("category", "general")
 
-    if new_status == "done":
-        user_msg = (
-            f"He completado la tarea '{title}' en el tablero Kanban. "
-            f"Dame la enhorabuena y explicame con claridad el siguiente paso prioritario y que debo hacer ahora."
-        )
-        st.toast(f"🎉 ¡Enhorabuena por cumplir: '{title}'!", icon="🎉")
-    elif new_status == "in_process":
-        user_msg = (
-            f"He puesto en marcha la tarea '{title}' en el tablero Kanban. "
-            f"Explicame las mejores pautas para ejecutarla bien y que debo tener en cuenta."
-        )
-        st.toast(f"🚀 Tarea '{title}' puesta en proceso.", icon="🚀")
-    elif action == "delete":
-        user_msg = f"He eliminado la tarea '{title}' del tablero Kanban."
-        st.toast(f"🗑️ Tarea '{title}' eliminada.", icon="🗑️")
-    elif action == "add":
-        user_msg = (
-            f"He anadido la tarea '{title}' al tablero Kanban. "
-            f"Explicame como encaja en mi plan y consejos para abordarla."
-        )
-        st.toast(f"➕ Nueva tarea anadida: '{title}'.", icon="📋")
-    else:
-        user_msg = f"He movido la tarea '{title}' a la columna '{ks.STATUSES.get(new_status, new_status)}'."
-        st.toast(f"📋 Tarea '{title}' movida.", icon="📋")
+    user_msg = (
+        f"He anadido {title} al plan (impacto: {impact}). "
+        f"Explicame con claridad como me recomiendas abordarla y que debo tener en cuenta."
+    )
+    st.toast(f"Consultando al Co-Pilot sobre '{title}'...", icon="💬")
 
     try:
         import httpx
@@ -797,8 +772,6 @@ def notify_agent_of_kanban_change(
             if resp.status_code == 200:
                 data = resp.json()
                 reply = data.get("reply", "")
-                changes_applied = data.get("changes_applied", False)
-                applied_summary = data.get("applied_summary", "")
 
                 ss = st.session_state
                 if "messages" not in ss:
@@ -811,16 +784,6 @@ def notify_agent_of_kanban_change(
 
                 short_reply = reply[:140] + "..." if len(reply) > 140 else reply
                 st.toast(f"💬 Co-Pilot: {short_reply}", icon="💡")
-
-                if changes_applied:
-                    st.toast(f"✅ Plan actualizado: {applied_summary}", icon="📊")
-
-                ss.kanban_agent_alert = {
-                    "card_title": title,
-                    "new_status": new_status,
-                    "reply": reply,
-                    "changes_applied": changes_applied
-                }
     except Exception:
         pass
 
@@ -873,9 +836,12 @@ def _add_card():
                     }
                     ks.add_card(**new_card)
                     ss = st.session_state
-                    case_id = getattr(ss, "case_id", "michael-carter")
-                    session_id = getattr(ss, "session_id", "default")
-                    notify_agent_of_kanban_change("add", new_card, new_status=status, case_id=case_id, session_id=session_id)
+                    ss.ask_talk_agent = {
+                        "type": "task",
+                        "title": title.strip(),
+                        "impact": impact.strip(),
+                        "category": category
+                    }
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))
@@ -887,18 +853,27 @@ def render():
     case_id = getattr(ss, "case_id", "michael-carter")
     session_id = getattr(ss, "session_id", "default")
 
-    # Banner destacado con el analisis reciente del Co-Pilot si hubo cambio en el Kanban
-    if "kanban_agent_alert" in ss and ss.kanban_agent_alert:
-        alert = ss.kanban_agent_alert
-        is_done = alert.get("new_status") == "done"
-        banner_icon = "🎉" if is_done else "💡"
-        banner_title = f"{banner_icon} Analisis Co-Pilot: {alert.get('card_title', 'Tarea')}"
-        with st.expander(banner_title, expanded=True):
-            st.markdown(alert.get("reply", ""))
-            c_dismiss, _ = st.columns([2, 8])
-            with c_dismiss:
-                if st.button("Cerrar aviso", key="dismiss_kb_alert"):
-                    del ss.kanban_agent_alert
+    # Preguntar al usuario si quiere hablar con el agente tras anadir una tarea
+    if "ask_talk_agent" in ss and ss.ask_talk_agent and ss.ask_talk_agent.get("type") == "task":
+        item = ss.ask_talk_agent
+        t_title = item.get("title", "")
+        with st.container():
+            c_info, c_action, c_close = st.columns([6, 3, 1])
+            with c_info:
+                st.info(f"Has anadido la tarea **'{t_title}'**. ¿Quieres hablar con el Co-Pilot sobre ella?")
+            with c_action:
+                if st.button("💬 Hablar con el agente", key=f"talk_task_{t_title}"):
+                    del ss.ask_talk_agent
+                    notify_agent_of_kanban_change(
+                        "add",
+                        {"title": t_title, "impact": item.get("impact", "")},
+                        case_id=case_id,
+                        session_id=session_id
+                    )
+                    st.rerun()
+            with c_close:
+                if st.button("✕ No", key=f"dismiss_task_{t_title}"):
+                    del ss.ask_talk_agent
                     st.rerun()
 
     a, _ = st.columns([3, 6])
@@ -906,7 +881,6 @@ def render():
         _add_card()
 
     current_data = ks.load()
-    existing_cards = {c["id"]: c for c in current_data.get("cards", [])}
 
     event = _board(
         cards=current_data["cards"],
@@ -920,38 +894,9 @@ def render():
         ss.last_nonce = event["nonce"]
         try:
             if event["type"] == "delete":
-                deleted_id = event["id"]
-                deleted_c = existing_cards.get(deleted_id, {"title": "Tarea"})
-                ks.delete_card(deleted_id)
-                notify_agent_of_kanban_change("delete", deleted_c, case_id=case_id, session_id=session_id)
+                ks.delete_card(event["id"])
             elif event["type"] == "move":
-                # Detectar que tarjeta cambio de columna
-                moved_c = None
-                old_st = None
-                new_st = None
-                for col_name, card_ids in event["layout"].items():
-                    for cid in card_ids:
-                        if cid in existing_cards:
-                            if existing_cards[cid].get("status") != col_name:
-                                moved_c = existing_cards[cid]
-                                old_st = existing_cards[cid].get("status")
-                                new_st = col_name
-                                break
-                    if moved_c:
-                        break
-
                 ks.arrange(event["layout"])
-
-                if moved_c and new_st != old_st:
-                    notify_agent_of_kanban_change(
-                        "move",
-                        moved_c,
-                        new_status=new_st,
-                        old_status=old_st,
-                        case_id=case_id,
-                        session_id=session_id
-                    )
-
             ss.kanban_version = ks.version()
         except ValueError as e:
             st.toast(str(e))

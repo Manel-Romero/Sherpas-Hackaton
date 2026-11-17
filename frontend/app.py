@@ -466,15 +466,12 @@ with tab_chat:
             if m.get("chart"):
                 render_chart(m["chart"])
 
-# =============================================================================
-# CHAT INPUT Y STREAMING SSE
-# =============================================================================
-prompt_input = st.chat_input("Escribe tu consulta al Co-Pilot...")
-active_prompt = chip_text or prompt_input
+    # Chat input exclusivo de la pestana de chat (no visible en dashboard ni tabla)
+    prompt_input = st.chat_input("Escribe tu consulta al Co-Pilot...")
+    active_prompt = chip_text or prompt_input
 
-if active_prompt:
-    ss.messages.append({"role": "user", "content": active_prompt})
-    with tab_chat:
+    if active_prompt:
+        ss.messages.append({"role": "user", "content": active_prompt})
         with st.chat_message("user"):
             st.markdown(active_prompt)
 
