@@ -1,6 +1,7 @@
 import json
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, Optional
 from mcp import ClientSession
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
@@ -63,7 +64,36 @@ class CaseRepository:
             err_str = str(e).lower()
             if "no encontrado" in err_str or "not found" in err_str or "no case" in err_str:
                 raise FileNotFoundError(f"Recurso no encontrado en servidor MCP: {str(e)}")
-            logger.error(f"Fallo al comunicar con el servidor MCP en {url}: {e}")
+            logger.warning(f"Fallo al comunicar con servidor MCP en {url} para '{tool_name}': {e}. Activando fallback local...")
+            if tool_name == "list_cases":
+                cases_dir = Path(__file__).resolve().parent.parent.parent.parent / "cases"
+                local_list = []
+                for c_dir in sorted(cases_dir.iterdir()):
+                    if c_dir.is_dir() and (c_dir / "financial-health.json").exists():
+                        try:
+                            fh = json.loads((c_dir / "financial-health.json").read_text(encoding="utf-8"))
+                            c_info = fh.get("case", {})
+                            sc = fh.get("score", {})
+                            local_list.append({
+                                "caseId": c_dir.name,
+                                "city": c_info.get("city"),
+                                "household": c_info.get("household", []),
+                                "score": sc.get("published_score", 0)
+                            })
+                        except Exception:
+                            continue
+                return local_list
+            elif tool_name == "get_case":
+                cid = arguments.get("caseId")
+                part = arguments.get("part")
+                cases_dir = Path(__file__).resolve().parent.parent.parent.parent / "cases" / cid
+                if not cases_dir.exists():
+                    raise FileNotFoundError(f"Caso '{cid}' no encontrado.")
+                if part == "persona":
+                    return (cases_dir / "persona.md").read_text(encoding="utf-8")
+                target_json = cases_dir / f"{part}.json"
+                if target_json.exists():
+                    return json.loads(target_json.read_text(encoding="utf-8"))
             raise RuntimeError(f"Error en la llamada al servidor MCP ({url}) para '{tool_name}': {str(e)}")
 
         return _parse_mcp_content(raw_text)
@@ -145,8 +175,21 @@ class CaseRepository:
             err_str = str(e).lower()
             if "no encontrado" in err_str or "not found" in err_str or "no case" in err_str:
                 raise FileNotFoundError(f"El caso '{case_id}' no existe en el servidor MCP.")
-            logger.error(f"Fallo al recuperar caso completo {case_id} desde MCP: {e}")
-            raise RuntimeError(f"Error en la llamada al servidor MCP ({url}) para el caso '{case_id}': {str(e)}")
+            logger.warning(f"Aviso servidor MCP remoto ({e}), activando replica local para '{case_id}'...")
+            local_dir = Path(__file__).resolve().parent.parent.parent.parent / "cases" / case_id
+            if local_dir.exists():
+                fh_file = local_dir / "financial-health.json"
+                ia_file = local_dir / "investment-analysis.json"
+                p_file = local_dir / "persona.md"
+                if fh_file.exists():
+                    raw_fh = fh_file.read_text(encoding="utf-8")
+                if ia_file.exists():
+                    raw_ia = ia_file.read_text(encoding="utf-8")
+                if p_file.exists():
+                    raw_persona = p_file.read_text(encoding="utf-8")
+            else:
+                logger.error(f"Fallo al recuperar caso completo {case_id} desde MCP y no hay replica local: {e}")
+                raise RuntimeError(f"Error en la llamada al servidor MCP ({url}) para el caso '{case_id}': {str(e)}")
 
         fh_data = _parse_mcp_content(raw_fh)
         ia_data = _parse_mcp_content(raw_ia)

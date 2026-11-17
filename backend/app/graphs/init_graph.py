@@ -74,8 +74,17 @@ Tu objetivo es analizar el caso completo (JSONs de salud financiera + markdown d
 
 REGLAS DE SHERPAS:
 - NUNCA inventes numeros. Usa exclusivamente los datos del caso.
-- Empatia: Si la persona tiene panico o score bajo (ej. 26), no juzgues; dale una victoria rapida.
-- Accion: Haz que la primera accion tome menos de 3 minutos."""
+- Empatia y respeto: Si la persona tiene panico o score bajo (ej. 26), no juzgues ni uses tono paternalista; dale una victoria rapida y tratalo como un adulto inteligente sin hacerle sentir culpable ni abrumado.
+- Lenguaje accesible: Redacta los titulares, motivos y tareas en un lenguaje claro, terrenal y comprensible para no expertos, evitando tecnicismos financieros innecesarios.
+- Accion: Haz que la primera accion tome menos de 3 minutos.
+- ERES EL ASESOR FINANCIERO: NUNCA generes tareas que digan 'Consulta con un asesor financiero' o 'Habla con un profesional'. Eres el asesor de Sherpas que comunica las acciones concretas para el cliente (ej: 'Rebalancear la cartera hacia un perfil 80/20' o 'Emitir ampliacion de poliza con la aseguradora').
+- GENERACION ESTRUCTURADA ESTRICTA (JSON limpio sin prefijos):
+  * Titulos: Deben ser limpios y naturales (ej: 'Abrir una cuenta IRA tradicional'). NUNCA incluyas corchetes de categoria como '[INVESTMENT]' o '[SAVINGS]', ni emojis como '⚡' o '🎯'.
+  * Categoria: Asignala estrictamente al campo `category` ('debt', 'savings', 'investment', 'insurance', 'lifestyle').
+  * Semana: El campo `week` guarda el numero entero (1, 2, 3 o 4). NUNCA escribas 'Semana 1 - ' en el titulo ni en la descripcion.
+  * Pasos: Se deben devolver como lista JSON de strings en `immediate_action_steps` y `steps`. NUNCA unas los pasos con barras '|'.
+  * Impacto: Debe expresarse de forma concisa y cuantificada en su respectivo campo de impacto (ej: '+$7,500/año', '+2 pts', '-$3,500').
+- ORTOGRAFIA: En tus respuestas o explicaciones en texto, responde siempre en castellano CON acentos y ortografia correcta."""
 
     human_content = f"""CASO: {case_id}
 CONSULTA DEL USUARIO: {user_query}
@@ -89,8 +98,9 @@ Mensaje: {score.get('message', '')}
 Top Moves recomendados por Sherpas: {json.dumps(top_moves, ensure_ascii=False)}
 
 PERFIL ECONOMICO BASICO:
-Incomes: {json.dumps(profile.get('incomes', [])[:3], ensure_ascii=False)}
-Debts: {json.dumps(profile.get('debts', [])[:3], ensure_ascii=False)}
+Incomes: {json.dumps(profile.get('incomes', []), ensure_ascii=False)}
+Expenses: {json.dumps(profile.get('expenses', []), ensure_ascii=False)}
+Liabilities: {json.dumps(profile.get('liabilities', []), ensure_ascii=False)}
 """
 
     try:
@@ -210,34 +220,44 @@ def persist_session_node(state: CaseInitState) -> CaseInitState:
                 net_worth=d.net_worth
             )
 
-        # 2. Inicializar las cajas verticales (Accion Inmediata + Tareas del Plan)
+        # 2. Inicializar las tarjetas del plan con esquema nativo estructurado
         if state.get("master_plan"):
             mp = state["master_plan"]
+            act = mp.immediate_action
             boxes_data = {"boxes": []}
             
-            # Caja 1: Accion Inmediata (Hoy)
-            act = mp.immediate_action
-            steps_txt = " | ".join(act.instructions) if act.instructions else act.reason
+            # Caja 1: Objetivo Maestro (Hero)
             boxes_data["boxes"].append({
-                "title": f"⚡ Accion Inmediata: {act.title}",
-                "content": f"{steps_txt} - Impacto: {act.expected_impact}",
-                "category": "immediate"
-            })
-            
-            # Caja 2: Titular del Plan
-            boxes_data["boxes"].append({
-                "title": "🎯 Objetivo Maestro",
+                "title": "Objetivo Maestro",
+                "category": "goal",
+                "description": mp.headline,
                 "content": mp.headline,
-                "category": "goal"
+                "impact": "",
+                "week": None,
+                "steps": []
             })
 
-            # Cajas 3+: Tareas accionables
+            # Caja 2: Accion Inmediata (Hoy)
+            boxes_data["boxes"].append({
+                "title": act.title,
+                "category": "immediate",
+                "description": act.reason,
+                "content": act.reason,
+                "impact": act.expected_impact,
+                "week": None,
+                "steps": list(act.instructions) if act.instructions else []
+            })
+
+            # Cajas 3+: Tareas accionables con campos tipados
             for t in mp.tasks:
-                imp_str = f" ({t.impact.value})" if t.impact else ""
                 boxes_data["boxes"].append({
-                    "title": f"[{t.category.upper()}] {t.title}{imp_str}",
-                    "content": f"Semana {t.week} - {t.description}",
-                    "category": t.category
+                    "title": t.title,
+                    "category": t.category,
+                    "description": t.description,
+                    "content": t.description,
+                    "impact": t.impact.value if t.impact else "",
+                    "week": t.week,
+                    "steps": list(t.steps) if getattr(t, "steps", None) else []
                 })
 
             bs.save(boxes_data, case_id=case_id)

@@ -10,12 +10,23 @@ class TaskImpact(BaseModel):
 class TaskItem(BaseModel):
     # Elemento individual de la lista de tareas
     id: str = Field(description="Identificador unico, ej: task_1")
-    title: str = Field(description="Titulo claro de la accion concreta")
-    description: str = Field(description="Pasos especificos para ejecutarla")
+    title: str = Field(description="Titulo claro de la accion concreta (sin prefijos de categoria ni corchetes)")
+    description: str = Field(description="Pasos especificos para ejecutarla de forma comprensible para no expertos")
     week: int = Field(default=1, description="Semana asignada en el roadmap (1 a 4)")
     status: Literal["pending", "in_progress", "completed"] = "pending"
     category: Literal["debt", "savings", "investment", "insurance", "lifestyle"] = "savings"
     impact: Optional[TaskImpact] = None
+    steps: list[str] = Field(default_factory=list, description="Lista de pasos secuenciales para ejecutar la tarea")
+
+class ActionBox(BaseModel):
+    # Tarjeta de accion estructurada para la interfaz visual
+    title: str = Field(description="Titulo limpio y conciso de la accion")
+    category: Literal["goal", "immediate", "debt", "savings", "investment", "insurance", "lifestyle", "alerta", "general"] = "general"
+    description: str = Field(default="", description="Explicacion clara y accesible del motivo o procedimiento")
+    impact: str = Field(default="", description="Impacto cuantificado conciso (ej: +$500/mes, +2 pts)")
+    week: Optional[int] = Field(default=None, description="Semana asignada (1 a 4) si aplica")
+    steps: list[str] = Field(default_factory=list, description="Lista secuencial de pasos a realizar")
+    content: str = Field(default="", description="Alias retrocompatible de description")
 
 class WeeklyRoadmap(BaseModel):
     # Bloque tematico semanal del plan de accion

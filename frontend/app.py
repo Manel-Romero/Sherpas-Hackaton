@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 from pathlib import Path
 
 # Asegurar que el directorio raiz del proyecto este siempre en sys.path
@@ -12,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import httpx
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 
 try:
     from frontend.style import style
@@ -108,7 +110,7 @@ def fetch_cases():
 def initialize_case_plan(case_id: str):
     with st.spinner("Analizando perfil con el modelo de razonamiento y poblando proyecciones..."):
         try:
-            r = httpx.post(f"{API_BASE_URL}/api/cases/{case_id}/init", json={}, timeout=60)
+            r = httpx.post(f"{API_BASE_URL}/api/cases/{case_id}/init", json={"session_id": ss.session_id}, timeout=60)
             if r.status_code == 200:
                 data = r.json()
                 mp = data.get("master_plan", {})
@@ -148,7 +150,17 @@ if bs.version(ss.case_id) != ss.boxes_version:
 # =============================================================================
 # CABECERA SUPERIOR: SELECTOR Y CARGA DE PLAN
 # =============================================================================
-case_map = {c["id"]: f"{c.get('title', c['id'])} ({c.get('city', '')}) - Score: {c.get('score', 0)}" for c in ss.cases_list}
+def format_case_label(c):
+    title = c.get('title', c['id'])
+    city = c.get('city', '')
+    score = c.get('score', 0)
+    if city and f"({city})" in title:
+        return f"{title} - Score: {score}/100"
+    elif city:
+        return f"{title} ({city}) - Score: {score}/100"
+    return f"{title} - Score: {score}/100"
+
+case_map = {c["id"]: format_case_label(c) for c in ss.cases_list}
 active_meta = next((c for c in ss.cases_list if c["id"] == ss.case_id), {})
 
 head_col1, head_col2, head_col3 = st.columns([4, 2, 4])
@@ -189,24 +201,166 @@ with head_col3:
 # =============================================================================
 # COMPONENTES DE CAJA Y TABLA
 # =============================================================================
-def render_box(title: str, content: str, category: str = "general"):
-    """Dibuja una tarjeta con diseno adaptable."""
+CATEGORY_CONFIG = {
+    "investment": {"label": "Inversion", "color": "#3b82f6", "bg": "rgba(59, 130, 246, 0.12)", "border": "rgba(59, 130, 246, 0.28)", "icon": "📈"},
+    "savings": {"label": "Ahorro", "color": "#10b981", "bg": "rgba(16, 185, 129, 0.12)", "border": "rgba(16, 185, 129, 0.28)", "icon": "💰"},
+    "debt": {"label": "Deuda", "color": "#f59e0b", "bg": "rgba(245, 158, 11, 0.12)", "border": "rgba(245, 158, 11, 0.28)", "icon": "💳"},
+    "insurance": {"label": "Seguros", "color": "#06b6d4", "bg": "rgba(6, 182, 212, 0.12)", "border": "rgba(6, 182, 212, 0.28)", "icon": "🛡️"},
+    "lifestyle": {"label": "Presupuesto", "color": "#8b5cf6", "bg": "rgba(139, 92, 246, 0.12)", "border": "rgba(139, 92, 246, 0.28)", "icon": "🌱"},
+    "immediate": {"label": "Accion Prioritaria (Hoy)", "color": "#22c55e", "bg": "rgba(34, 197, 94, 0.15)", "border": "rgba(34, 197, 94, 0.35)", "icon": "⚡"},
+    "prioritaria": {"label": "Accion Prioritaria (Hoy)", "color": "#22c55e", "bg": "rgba(34, 197, 94, 0.15)", "border": "rgba(34, 197, 94, 0.35)", "icon": "⚡"},
+    "goal": {"label": "Objetivo Maestro", "color": "#818cf8", "bg": "rgba(99, 102, 241, 0.12)", "border": "rgba(99, 102, 241, 0.28)", "icon": "🎯"},
+    "alerta": {"label": "Contingencia", "color": "#ef4444", "bg": "rgba(239, 68, 68, 0.12)", "border": "rgba(239, 68, 68, 0.28)", "icon": "🚨"},
+}
+
+def render_box(box_data: dict | str, content: str = "", category: str = "general"):
+    """Renderiza una tarjeta estructurada directamente desde los campos nativos JSON."""
+    if isinstance(box_data, dict):
+        box_title = (box_data.get("title") or "").strip()
+        cat = (box_data.get("category") or "general").strip().lower()
+        description = (box_data.get("description") or box_data.get("content") or "").strip()
+        impact = (box_data.get("impact") or "").strip()
+        raw_week = box_data.get("week")
+        steps = box_data.get("steps") or []
+    else:
+        box_title = str(box_data).strip()
+        cat = (category or "general").strip().lower()
+        description = (content or "").strip()
+        impact = ""
+        raw_week = None
+        steps = []
+
+    week_str = f"Semana {raw_week}" if raw_week is not None and str(raw_week).strip() else ""
+    if isinstance(steps, str):
+        steps = [s.strip() for s in steps.split("\n") if s.strip()]
+
+    cfg = CATEGORY_CONFIG.get(cat, {
+        "label": cat.capitalize(),
+        "color": "#94a3b8",
+        "bg": "rgba(148, 163, 184, 0.12)",
+        "border": "rgba(148, 163, 184, 0.25)",
+        "icon": "📌"
+    })
+
     with st.container():
         st.markdown('<span class="box-marker"></span>', unsafe_allow_html=True)
-        head, btn = st.columns([20, 1])
-        
-        is_immediate = category == "immediate" or title.startswith("⚡")
-        if is_immediate:
-            head.markdown('<span class="immediate-badge">⚡ Accion Prioritaria (Hoy)</span>', unsafe_allow_html=True)
-            
-        head.subheader(title)
-        btn.button(
-            "✕",
-            key=f"remove_{ss.case_id}_{title}",
-            on_click=bs.remove_box,
-            args=(title, ss.case_id),
-        )
-        st.markdown(content.replace("\n", "  \n"))
+
+        # 1. Caso especial: Objetivo Maestro (Hero Card)
+        if cat == "goal":
+            c_left, c_right = st.columns([22, 1])
+            with c_left:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, rgba(79, 140, 255, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+                            border: 1px solid rgba(79, 140, 255, 0.3); border-radius: 14px; padding: 16px 20px; margin-bottom: 8px;">
+                    <div style="font-size: 0.76rem; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">
+                        🎯 Objetivo Maestro del Plan
+                    </div>
+                    <div style="font-size: 1.18rem; font-weight: 600; color: #f4f5f7; line-height: 1.4;">
+                        {description or box_title}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with c_right:
+                st.button("✕", key=f"remove_{ss.case_id}_{box_title}", on_click=bs.remove_box, args=(box_title, ss.case_id))
+            return
+
+        # 2. Tarjetas de Accion y Tareas
+        c_head, c_btn = st.columns([22, 1])
+        with c_head:
+            badges_html = []
+            # Badge de categoria
+            badges_html.append(
+                f'<span style="background: {cfg["bg"]}; color: {cfg["color"]}; border: 1px solid {cfg["border"]}; '
+                f'padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">'
+                f'{cfg["icon"]} {cfg["label"]}</span>'
+            )
+            # Badge de semana si existe
+            if week_str:
+                badges_html.append(
+                    f'<span style="background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); '
+                    f'padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 500;">'
+                    f'📅 {week_str}</span>'
+                )
+            # Badge de impacto financiero si existe
+            if impact:
+                badges_html.append(
+                    f'<span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); '
+                    f'padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;">'
+                    f'✨ {impact}</span>'
+                )
+
+            st.markdown(f'<div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">{" ".join(badges_html)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size: 1.08rem; font-weight: 600; color: #f4f5f7; margin-bottom: 8px;">{box_title}</div>', unsafe_allow_html=True)
+
+        with c_btn:
+            st.button("✕", key=f"remove_{ss.case_id}_{box_title}", on_click=bs.remove_box, args=(box_title, ss.case_id))
+
+        # Descripcion accesible (si no es identica al titulo)
+        if description and description != box_title:
+            st.markdown(f'<div style="color: var(--muted); font-size: 0.92rem; line-height: 1.5; margin-bottom: 8px;">{description}</div>', unsafe_allow_html=True)
+
+        # Pasos secuenciales limpios
+        if steps:
+            steps_html = "".join([
+                f'<li style="color: var(--text); margin-bottom: 6px; font-size: 0.92rem; line-height: 1.45;">{s}</li>'
+                for s in steps
+            ])
+            st.markdown(f'<ol style="margin: 0 0 10px 18px; padding: 0;">{steps_html}</ol>', unsafe_allow_html=True)
+
+def render_chart(chart: dict):
+    """Renderiza graficos interactivos generados por el Co-Pilot o la tabla."""
+    if not chart:
+        return
+    c_type = chart.get("type", "bar")
+    title = chart.get("title", "")
+    labels = chart.get("labels") or chart.get("categories") or []
+    values = chart.get("values") or []
+
+    if not labels or not values:
+        return
+
+    fig = go.Figure()
+    if c_type == "bar":
+        fig.add_trace(go.Bar(
+            x=labels,
+            y=values,
+            marker_color="#4f8cff",
+            text=[f"${v:,.0f}" if isinstance(v, (int, float)) and v >= 100 else str(v) for v in values],
+            textposition="auto"
+        ))
+    elif c_type == "line":
+        fig.add_trace(go.Scatter(
+            x=labels,
+            y=values,
+            mode="lines+markers",
+            line=dict(color="#4f8cff", width=3),
+            marker=dict(size=8, color="#22c55e")
+        ))
+    elif c_type in ("donut", "pie"):
+        fig.add_trace(go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.45 if c_type == "donut" else 0.0,
+            marker=dict(colors=[
+                "#4f8cff", "#22c55e", "#f59e0b", "#ec4899", "#a855f7",
+                "#06b6d4", "#14b8a6", "#eab308", "#6366f1", "#f97316"
+            ]),
+            textinfo="label+percent",
+            hoverinfo="label+value+percent",
+            textposition="inside"
+        ))
+
+    fig.update_layout(
+        title=dict(text=title, font=dict(color="#f4f5f7", size=15)),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#f4f5f7", family="Inter"),
+        margin=dict(l=15, r=15, t=35, b=15),
+        height=320,
+        xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 def add_column_popover():
     with st.popover("➕ Anadir Columna"):
@@ -226,7 +380,7 @@ def add_column_popover():
 # =============================================================================
 # LAS TRES MODALIDADES (TABS)
 # =============================================================================
-tab_vertical, tab_table, tab_chat = st.tabs(["Vertical", "Table", "Chat"])
+tab_vertical, tab_table, tab_chat = st.tabs(["📋 Plan de Accion", "📊 Proyeccion & Datos", "💬 Chat Co-Pilot"])
 
 # --- Tab 1: Vertical (Cajas y tareas) ---
 with tab_vertical:
@@ -234,10 +388,23 @@ with tab_vertical:
     if not boxes:
         st.info("No hay tarjetas activas. Pulsa 'Cargar / Reiniciar Plan' para generar la sintesis del caso.")
     else:
-        for b in boxes:
-            render_box(b.get("title", ""), b.get("content", "Vacio"), b.get("category", "general"))
+        goal_boxes = [b for b in boxes if b.get("category") == "goal"]
+        immediate_boxes = [b for b in boxes if b.get("category") == "immediate"]
+        other_boxes = [b for b in boxes if b not in goal_boxes and b not in immediate_boxes]
 
-# --- Tab 2: Table (Hoja de calculo mensual) ---
+        # 1. Objetivo Maestro (Hero Card)
+        for b in goal_boxes:
+            render_box(b)
+
+        # 2. Accion Inmediata (Hoy)
+        for b in immediate_boxes:
+            render_box(b)
+
+        # 3. Tareas Semanales y Contingencias
+        for b in other_boxes:
+            render_box(b)
+
+# --- Tab 2: Table (Hoja de calculo mensual y graficos) ---
 with tab_table:
     current_table = ts.load(ss.case_id)
     rows = current_table.get("rows", [])
@@ -245,16 +412,55 @@ with tab_table:
 
     # Resumen superior de KPIs
     if rows:
-        latest_row = rows[-1]
+        current_month = time.strftime("%Y-%m")
+        active_row = next((r for r in rows if r.get("date") == current_month), rows[0])
         c1, c2, c3, c4 = st.columns(4)
-        c1.markdown(f"<div class='kpi-pill'>Mes activo: <strong>{latest_row.get('date', 'N/A')}</strong></div>", unsafe_allow_html=True)
-        if "Patrimonio" in latest_row:
-            c2.markdown(f"<div class='kpi-pill'>Patrimonio: <strong>${latest_row['Patrimonio']:,.0f}</strong></div>", unsafe_allow_html=True)
-        if "Ingresos" in latest_row and "Gastos_Fijos" in latest_row:
-            cf = latest_row["Ingresos"] - latest_row["Gastos_Fijos"]
-            c3.markdown(f"<div class='kpi-pill'>Ahorro mensual: <strong>${cf:,.0f}</strong></div>", unsafe_allow_html=True)
-        if "Deuda_Pendiente" in latest_row:
-            c4.markdown(f"<div class='kpi-pill'>Deuda viva: <strong>${latest_row['Deuda_Pendiente']:,.0f}</strong></div>", unsafe_allow_html=True)
+        c1.markdown(f"<div class='kpi-pill'>Mes activo: <strong>{active_row.get('date', 'N/A')}</strong></div>", unsafe_allow_html=True)
+        if "Patrimonio" in active_row:
+            c2.markdown(f"<div class='kpi-pill'>Patrimonio: <strong>${active_row['Patrimonio']:,.0f}</strong></div>", unsafe_allow_html=True)
+        if "Ingresos" in active_row and "Gastos_Fijos" in active_row:
+            cf = active_row["Ingresos"] - active_row["Gastos_Fijos"]
+            c3.markdown(f"<div class='kpi-pill'>Flujo libre: <strong>${cf:,.0f}</strong></div>", unsafe_allow_html=True)
+        if "Deuda_Pendiente" in active_row:
+            c4.markdown(f"<div class='kpi-pill'>Deuda viva: <strong>${active_row['Deuda_Pendiente']:,.0f}</strong></div>", unsafe_allow_html=True)
+
+    # Grafico interactivo de evolucion temporal (Patrimonio, Deuda, Ahorro)
+    if not ss.df.empty and len(ss.df) > 1:
+        with st.expander("📈 Proyeccion Financiera a 12 Meses (Plan Sherpas Wealth)", expanded=True):
+            st.caption("Evolucion proyectada al cumplir el plan de accion: crecimiento de patrimonio neto (linea azul), amortizacion progresiva de deuda (linea roja punteada) y ahorro libre mensual generado (barras verdes). Reacciona en tiempo real a cualquier cambio en la tabla inferior o imprevisto gestionado por el Co-Pilot.")
+            fig_proj = go.Figure()
+            df_plot = ss.df
+            if "Patrimonio" in df_plot.columns:
+                fig_proj.add_trace(go.Scatter(
+                    x=df_plot["date"], y=df_plot["Patrimonio"],
+                    name="Patrimonio Neto", mode="lines+markers",
+                    line=dict(color="#4f8cff", width=3),
+                    marker=dict(size=6)
+                ))
+            if "Deuda_Pendiente" in df_plot.columns:
+                fig_proj.add_trace(go.Scatter(
+                    x=df_plot["date"], y=df_plot["Deuda_Pendiente"],
+                    name="Deuda Pendiente", mode="lines+markers",
+                    line=dict(color="#ef4444", width=2, dash="dot"),
+                    marker=dict(size=6)
+                ))
+            if "Ahorro_Libre" in df_plot.columns:
+                fig_proj.add_trace(go.Bar(
+                    x=df_plot["date"], y=df_plot["Ahorro_Libre"],
+                    name="Ahorro Mensual",
+                    marker_color="rgba(34, 197, 94, 0.45)"
+                ))
+            fig_proj.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#f4f5f7", family="Inter"),
+                margin=dict(l=10, r=10, t=25, b=10),
+                height=300,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)"),
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.08)", tickprefix="$"),
+            )
+            st.plotly_chart(fig_proj, use_container_width=True)
 
     add_column_popover()
 
@@ -294,22 +500,27 @@ with tab_table:
 with tab_chat:
     # Chips de preguntas rapidas recomendadas para la presentacion
     st.write("**Preguntas de prueba rapida para la demo:**")
-    c_btn1, c_btn2, c_btn3 = st.columns(3)
+    c_btn1, c_btn2, c_btn3, c_btn4 = st.columns(4)
     chip_text = None
     with c_btn1:
-        if st.button("🚨 Tuve un accidente (-2.000 €)", use_container_width=True):
-            chip_text = "He tenido un accidente imprevisto y he tenido que desembolsar 2.000 €. Ajusta mi tabla para absorber el gasto y dime como afecta a mi plan."
+        if st.button("🚨 Gasto imprevisto (-2.000 $)", use_container_width=True):
+            chip_text = "He tenido un accidente imprevisto y he tenido que desembolsar 2.000 $. Ajusta mi tabla para absorber el gasto y dime como afecta a mi plan."
     with c_btn2:
-        if st.button("🔍 Explica mi score bajo", use_container_width=True):
-            chip_text = "¿Por que mi score es tan bajo y cual es mi cuello de botella principal segun mi informe?"
+        if st.button("🔍 Diagnostico y score", use_container_width=True):
+            chip_text = "Analiza mi score de salud financiera y explicame cual es mi cuello de botella principal segun mi informe."
     with c_btn3:
         if st.button("💰 Bonus de 15.000 $", use_container_width=True):
             chip_text = "Voy a recibir un bonus de 15.000 $. En lugar de gastarlo, amortiza la deuda de la tarjeta en la tabla y destina el resto a mi colchon de seguridad."
+    with c_btn4:
+        if st.button("📊 Comparativa visual", use_container_width=True):
+            chip_text = "Muestrame un grafico comparativo con la distribucion de mis ingresos y gastos mensuales actuales."
 
     # Historial de mensajes
     for m in ss.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
+            if m.get("chart"):
+                render_chart(m["chart"])
 
 # =============================================================================
 # CHAT INPUT Y STREAMING SSE
@@ -327,6 +538,7 @@ if active_prompt:
             placeholder = st.empty()
             full_response = ""
             tools_used = []
+            received_chart = None
 
             ss.is_streaming = True
             try:
@@ -371,6 +583,9 @@ if active_prompt:
                                     state_reply = event.get("full_reply", "")
                                     if state_reply and not full_response:
                                         full_response = state_reply
+                                    chart_data = event.get("chart_to_render")
+                                    if chart_data:
+                                        received_chart = chart_data
                                 elif ev_type == "error":
                                     err_detail = event.get("detail", "Error en el servidor")
                                     placeholder.error(f"Error en el servidor: {err_detail}")
@@ -379,7 +594,12 @@ if active_prompt:
 
                 if full_response:
                     placeholder.markdown(full_response)
-                    ss.messages.append({"role": "assistant", "content": full_response})
+                    if received_chart:
+                        render_chart(received_chart)
+                    msg_payload = {"role": "assistant", "content": full_response}
+                    if received_chart:
+                        msg_payload["chart"] = received_chart
+                    ss.messages.append(msg_payload)
                 else:
                     placeholder.warning("El Co-Pilot no emitio respuesta de texto.")
 
@@ -389,6 +609,7 @@ if active_prompt:
                 ss.df = ts.to_df(ts.load(ss.case_id))
                 ss.boxes = bs.load(ss.case_id).get("boxes", [])
                 ss.editor_gen += 1
+                st.rerun()
 
             except Exception as e:
                 placeholder.error(f"Fallo en la comunicacion con el Co-Pilot: {e}")

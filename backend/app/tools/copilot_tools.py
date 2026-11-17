@@ -1,5 +1,5 @@
 import json
-from typing import Literal
+from typing import Literal, Optional
 from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
 from backend.app.services.session_store import session_store, SessionData
@@ -71,17 +71,29 @@ def update_dashboard_metric(
 def display_chart(
     chart_type: Literal["bar", "line", "donut"],
     title: str,
-    categories: list[str],
-    values: list[float],
+    categories: Optional[list[str]] = None,
+    values: Optional[list[float]] = None,
+    labels: Optional[list[str]] = None,
     config: RunnableConfig = None  # Inyectado automaticamente por LangChain en tiempo de ejecucion
 ) -> str:
-    """Solicita a la interfaz mostrar un grafico interactivo (barras, lineas o donut) con proyecciones o comparaciones."""
+    """Solicita a la interfaz mostrar un grafico interactivo (barras, lineas o donut) con proyecciones o desgloses.
+    
+    Args:
+        chart_type: 'bar', 'line' o 'donut'
+        title: Titulo descriptivo del grafico
+        categories: Lista de categorias o etiquetas (ej: ['Gastos Esenciales', 'Alquiler', 'Deudas'])
+        values: Lista de valores numericos correspondientes (ej: [5500, 2800, 950])
+        labels: Alias alternativo de categories
+    """
     session = _get_session_from_config(config)
+    cat_list = categories if categories is not None else (labels if labels is not None else [])
+    val_list = values if values is not None else []
     chart_payload = {
         "type": chart_type,
         "title": title,
-        "labels": categories,
-        "values": values
+        "labels": cat_list,
+        "categories": cat_list,
+        "values": val_list
     }
     session.pending_charts.append(chart_payload)
     return f"Grafico '{title}' ({chart_type}) enviado para visualizacion en el frontend."
@@ -142,17 +154,41 @@ def add_table_column(
 def manage_box(
     action: Literal["add", "update", "delete"],
     title: str,
+    description: str = "",
     content: str = "",
-    category: str = "general",
+    category: Literal["immediate", "prioritaria", "savings", "investment", "debt", "insurance", "lifestyle", "alerta", "goal", "general"] = "general",
+    impact: str = "",
+    week: Optional[int] = None,
+    steps: Optional[list[str]] = None,
     config: RunnableConfig = None
 ) -> str:
-    """Crea, actualiza o elimina una tarjeta visual en el panel vertical de la interfaz (ej: para registrar un hito, alerta de emergencia o tarea completada)."""
+    """Gestiona tarjetas en el panel de accion con campos estructurados nativos.
+    
+    Args:
+        action: 'add', 'update' o 'delete'
+        title: Titulo conciso y claro de la accion (sin corchetes de categoria ni emojis, ej: 'Apertura de cuenta HSA')
+        description: Explicacion accesible y empatica orientada a no expertos (sin jerga bancaria compleja)
+        category: Categoria ('immediate', 'prioritaria', 'savings', 'investment', 'debt', 'insurance', 'lifestyle', 'alerta', 'goal', 'general')
+        impact: Beneficio cuantificado conciso (ej: '+$500/mes', '-$2,000 en deuda', '+5 pts')
+        week: Numero de semana asignada (1 a 4) si aplica
+        steps: Lista de pasos directos a seguir para ejecutar la accion (ej: ['Llamar al banco', 'Ajustar cuota'])
+    """
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
+    desc = description or content
+    norm_cat = "immediate" if category == "prioritaria" else category
     try:
         from frontend import boxes_store as bs
         if action in ("add", "update"):
-            bs.add_box(title, content, category, case_id=case_id)
+            bs.add_box(
+                title=title,
+                content=desc,
+                category=norm_cat,
+                impact=impact,
+                week=week,
+                steps=steps,
+                case_id=case_id
+            )
             return f"Tarjeta '{title}' guardada en el panel vertical."
         elif action == "delete":
             bs.remove_box(title, case_id=case_id)

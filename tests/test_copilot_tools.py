@@ -95,6 +95,16 @@ def test_display_chart_tool():
     assert chart["title"] == "Comparativa de Ahorro"
     assert len(chart["labels"]) == 3
 
+def test_session_store_context_inheritance():
+    # Comprueba que una nueva sesion dinamica hereda el plan maestro y contexto del caso inicializado
+    case_id = "test-inherit-case"
+    default_sess = session_store.get_or_create("default", case_id)
+    default_sess.summary_executive = "Resumen ejecutivo del plan para testing"
+    
+    # Crear una nueva sesion con timestamp como hace el frontend
+    dyn_sess = session_store.get_or_create("sess_test-inherit-case_12345678", case_id)
+    assert dyn_sess.summary_executive == "Resumen ejecutivo del plan para testing"
+
 @pytest.mark.asyncio
 async def test_inspect_case_data_tool():
     # Comprueba la herramienta de consulta granular al servidor MCP

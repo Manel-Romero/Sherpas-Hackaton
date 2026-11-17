@@ -75,7 +75,16 @@ class SessionStore:
     def get_or_create(self, session_id: str, case_id: str) -> SessionData:
         key = f"{session_id}:{case_id}"
         if key not in self._sessions:
-            self._sessions[key] = SessionData(case_id=case_id)
+            new_session = SessionData(case_id=case_id)
+            # Si existe una sesion default previa para este caso con datos del plan, heredar el contexto
+            default_session = self._sessions.get(f"default:{case_id}")
+            if default_session and session_id != "default":
+                new_session.master_plan = default_session.master_plan
+                new_session.tasks = list(default_session.tasks)
+                new_session.dashboard = default_session.dashboard
+                new_session.summary_executive = default_session.summary_executive
+                new_session.persona_highlights = default_session.persona_highlights
+            self._sessions[key] = new_session
         return self._sessions[key]
 
     def get(self, session_id: str, case_id: str) -> Optional[SessionData]:
