@@ -68,6 +68,30 @@ st.markdown("""
         border: 1px solid var(--border);
         font-size: 0.9rem;
     }
+    /* Ocultar barra inferior de chat cuando no se este en la pestana de Chat */
+    :root:has([data-testid="stTabPanel"][id="2"][data-st-inactive]) [data-testid="stBottom"],
+    body:has([data-testid="stTabPanel"][id="2"][data-st-inactive]) [data-testid="stBottom"],
+    .stApp:has([data-testid="stTabPanel"][id="2"][data-st-inactive]) [data-testid="stBottom"],
+    :root:has([data-testid="stTab"][id="0"][aria-selected="true"]) [data-testid="stBottom"],
+    :root:has([data-testid="stTab"][id="1"][aria-selected="true"]) [data-testid="stBottom"],
+    body:has([data-testid="stTab"][id="0"][aria-selected="true"]) [data-testid="stBottom"],
+    body:has([data-testid="stTab"][id="1"][aria-selected="true"]) [data-testid="stBottom"],
+    .stApp:has([data-testid="stTab"][id="0"][aria-selected="true"]) [data-testid="stBottom"],
+    .stApp:has([data-testid="stTab"][id="1"][aria-selected="true"]) [data-testid="stBottom"],
+    :root:has([data-testid="stTab"]:nth-of-type(1)[aria-selected="true"]) [data-testid="stBottom"],
+    :root:has([data-testid="stTab"]:nth-of-type(2)[aria-selected="true"]) [data-testid="stBottom"],
+    body:has([data-testid="stTab"]:nth-of-type(1)[aria-selected="true"]) [data-testid="stBottom"],
+    body:has([data-testid="stTab"]:nth-of-type(2)[aria-selected="true"]) [data-testid="stBottom"],
+    .stApp:has([data-testid="stTab"]:nth-of-type(1)[aria-selected="true"]) [data-testid="stBottom"],
+    .stApp:has([data-testid="stTab"]:nth-of-type(2)[aria-selected="true"]) [data-testid="stBottom"] {
+        display: none !important;
+    }
+    /* Ajustar padding inferior en el dashboard cuando el chat input esta oculto */
+    body:has([data-testid="stTabPanel"][id="2"][data-st-inactive]) [data-testid="stMainBlockContainer"],
+    body:has([data-testid="stTab"][id="0"][aria-selected="true"]) [data-testid="stMainBlockContainer"],
+    body:has([data-testid="stTab"][id="1"][aria-selected="true"]) [data-testid="stMainBlockContainer"] {
+        padding-bottom: 2rem !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -466,12 +490,15 @@ with tab_chat:
             if m.get("chart"):
                 render_chart(m["chart"])
 
-    # Chat input exclusivo de la pestana de chat (no visible en dashboard ni tabla)
-    prompt_input = st.chat_input("Escribe tu consulta al Co-Pilot...")
-    active_prompt = chip_text or prompt_input
+# =============================================================================
+# CHAT INPUT Y STREAMING SSE (PINNED AL FONDO, VISIBLE SOLO EN CHAT)
+# =============================================================================
+prompt_input = st.chat_input("Escribe tu consulta al Co-Pilot...")
+active_prompt = chip_text or prompt_input
 
-    if active_prompt:
-        ss.messages.append({"role": "user", "content": active_prompt})
+if active_prompt:
+    ss.messages.append({"role": "user", "content": active_prompt})
+    with tab_chat:
         with st.chat_message("user"):
             st.markdown(active_prompt)
 
@@ -578,16 +605,53 @@ with tab_chat:
             finally:
                 ss.is_streaming = False
 
-    # JavaScript auto-scroll para que el chat baje automaticamente
-    st.html(
-        """
-        <script>
+# Sincronizar visibilidad del chat inferior y auto-scroll
+st.html(
+    """
+    <script>
+    (function() {
+        function syncBottomChat() {
+            const bottom = document.querySelector('[data-testid="stBottom"]');
+            if (!bottom) return;
+
+            const chatPanel = document.querySelector('[data-testid="stTabPanel"][id="2"]');
+            if (chatPanel) {
+                const isInactive = chatPanel.hasAttribute('data-st-inactive') || chatPanel.getAttribute('aria-hidden') === 'true' || chatPanel.hidden;
+                bottom.style.display = isInactive ? 'none' : '';
+                return;
+            }
+
+            const tabs = document.querySelectorAll('[data-testid="stTab"]');
+            if (tabs && tabs.length >= 3) {
+                const isChatActive = tabs[2].getAttribute('aria-selected') === 'true';
+                bottom.style.display = isChatActive ? '' : 'none';
+            }
+        }
+
+        if (!window._bottomChatObserver) {
+            window._bottomChatObserver = new MutationObserver(syncBottomChat);
+            window._bottomChatObserver.observe(document.body, {
+                attributes: true,
+                subtree: true,
+                attributeFilter: ['aria-selected', 'data-st-inactive', 'hidden', 'aria-hidden']
+            });
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('[data-testid="stTab"]')) {
+                    setTimeout(syncBottomChat, 20);
+                    setTimeout(syncBottomChat, 100);
+                }
+            });
+            setInterval(syncBottomChat, 250);
+        }
+        syncBottomChat();
+
         const main = document.querySelector('[data-testid="stMain"]');
         if (main) main.scrollTo({top: main.scrollHeight, behavior: 'smooth'});
-        </script>
-        """,
-        unsafe_allow_javascript=True
-    )
+    })();
+    </script>
+    """,
+    unsafe_allow_javascript=True
+)
 
 # =============================================================================
 # WATCHER EN SEGUNDO PLANO
