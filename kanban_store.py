@@ -21,6 +21,10 @@ STATUSES = {"todo": "To do", "in_process": "In process", "done": "Done"}
 
 def set_case(case_id: str = "michael-carter") -> Path:
     global KANBAN_FILE
+    custom = os.environ.get("KANBAN_JSON")
+    if custom:
+        KANBAN_FILE = Path(custom)
+        return KANBAN_FILE
     target_dir = BASE_DATA_DIR / case_id
     target_dir.mkdir(parents=True, exist_ok=True)
     target_file = target_dir / "kanban.json"
