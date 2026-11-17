@@ -67,6 +67,39 @@ def clean(data: dict) -> dict:
     return {"columns": columns, "rows": rows}
 
 
+def recalculate_projections(data: dict) -> dict:
+    """Recalcula dinamicamente Ahorro_Libre y Patrimonio a partir de Ingresos y Gastos_Fijos."""
+    columns = list(data.get("columns", []))
+    rows = data.get("rows", [])
+    if not rows:
+        return data
+
+    has_inc = "Ingresos" in columns
+    has_exp = "Gastos_Fijos" in columns
+
+    if has_inc and has_exp:
+        if "Ahorro_Libre" not in columns:
+            columns.append("Ahorro_Libre")
+
+        has_nw = "Patrimonio" in columns
+        base_nw = to_number(rows[0].get("Patrimonio", 0.0)) if has_nw else 0.0
+
+        for idx, r in enumerate(rows):
+            inc = to_number(r.get("Ingresos", 0.0))
+            exp = to_number(r.get("Gastos_Fijos", 0.0))
+            free_savings = round(inc - exp, 2)
+            r["Ahorro_Libre"] = free_savings
+
+            if has_nw:
+                if idx == 0:
+                    base_nw = to_number(r.get("Patrimonio", base_nw))
+                else:
+                    base_nw = round(base_nw + max(0.0, free_savings), 2)
+                    r["Patrimonio"] = base_nw
+
+    return {"columns": columns, "rows": rows}
+
+
 def load(case_id: str | None = None) -> dict:
     if case_id:
         set_case(case_id)
@@ -79,7 +112,7 @@ def load(case_id: str | None = None) -> dict:
 def save(data: dict, case_id: str | None = None) -> dict:
     if case_id:
         set_case(case_id)
-    data = clean(data)
+    data = recalculate_projections(clean(data))
     with _lock:
         tmp = DATA_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

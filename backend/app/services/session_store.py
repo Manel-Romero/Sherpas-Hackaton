@@ -34,61 +34,61 @@ class SessionData:
         self.tasks = [t for t in self.tasks if t.id != task_id and t.title.lower() != task_id.lower()]
         return len(self.tasks) < initial_len
 
-    @staticmethod
-    def _normalize_metric_key(key: str) -> str:
+    @classmethod
+    def _normalize_metric_key(cls, key: str) -> str:
         k = key.lower().strip().replace(" ", "_").replace("-", "_")
-        aliases = {
-            "ingreso_mensual": "monthly_income",
-            "ingresos_mensuales": "monthly_income",
-            "ingreso": "monthly_income",
-            "ingresos": "monthly_income",
-            "salario": "monthly_income",
-            "salario_mensual": "monthly_income",
-            "sueldo": "monthly_income",
-            "gasto_mensual": "monthly_expenses",
-            "gastos_mensuales": "monthly_expenses",
-            "gasto": "monthly_expenses",
-            "gastos": "monthly_expenses",
-            "gastos_fijos": "monthly_expenses",
-            "patrimonio": "net_worth",
-            "patrimonio_neto": "net_worth",
-            "riqueza": "net_worth",
-            "score": "health_score",
-            "salud_financiera": "health_score",
-            "score_salud": "health_score",
-            "puntaje": "health_score",
-            "flujo_libre": "monthly_free_cashflow",
-            "flujo_caja": "monthly_free_cashflow",
-            "flujo_de_caja": "monthly_free_cashflow",
-            "cashflow": "monthly_free_cashflow",
-            "ahorro_libre": "monthly_free_cashflow",
-            "monthly_cashflow": "monthly_free_cashflow",
-            "activos": "total_assets",
-            "total_activos": "total_assets",
-            "deudas": "total_liabilities",
-            "total_deudas": "total_liabilities",
-            "pasivos": "total_liabilities",
-            "total_pasivos": "total_liabilities",
+
+        # 1. Coincidencia directa con campos de DashboardState
+        from backend.app.models.dashboard import DashboardState
+        if k in DashboardState.model_fields:
+            return k
+
+        # 2. Resolucion semantica generica por raices lexicas (sin diccionarios estaticos rigidos)
+        semantic_groups = {
+            "monthly_income": ("ingreso", "income", "salario", "salary", "sueldo", "revenue"),
+            "monthly_expenses": ("gasto", "expense", "cost", "coste", "living"),
+            "monthly_free_cashflow": ("flujo", "cashflow", "ahorro_libre", "free_cash"),
+            "net_worth": ("patrimonio", "net_worth", "riqueza", "wealth"),
+            "total_liabilities": ("deuda", "liability", "debt", "pasivo"),
+            "total_assets": ("activo", "asset"),
+            "health_score": ("score", "salud", "puntaje", "health"),
         }
-        return aliases.get(k, k)
+        for canonical, terms in semantic_groups.items():
+            if any(term in k for term in terms):
+                return canonical
+
+        return k
 
     def _ensure_dashboard(self) -> DashboardState:
         if self.dashboard:
             return self.dashboard
-        defaults = {
-            "michael-carter": (26, 218500.0, 247000.0, 28500.0, 15000.0, 9306.0),
-            "daniel-emily-johnson": (52, 620000.0, 980000.0, 360000.0, 22000.0, 14200.0),
-            "samantha-lewis": (82, 1150000.0, 1450000.0, 300000.0, 28000.0, 16500.0),
-            "timothy-melanie-weah": (60, 480000.0, 750000.0, 270000.0, 19500.0, 13800.0),
-        }
-        sc, nw, ta, tl, inc, exp = defaults.get(self.case_id, (50, 200000.0, 250000.0, 50000.0, 15000.0, 9000.0))
-        cf = inc - exp
+
+        # Cargar valores dinamicamente desde la tabla del caso para no hardcodear
+        inc = 15000.0
+        exp = 9000.0
+        nw = 200000.0
+        debt = 25000.0
+        sc = 50
+
+        try:
+            from frontend import table_store as ts
+            tb = ts.load(case_id=self.case_id)
+            if tb.get("rows"):
+                r0 = tb["rows"][0]
+                inc = float(r0.get("Ingresos", inc))
+                exp = float(r0.get("Gastos_Fijos", exp))
+                nw = float(r0.get("Patrimonio", nw))
+                debt = float(r0.get("Deuda_Pendiente", debt))
+        except Exception:
+            pass
+
+        cf = round(inc - exp, 2)
         self.dashboard = DashboardState(
             case_id=self.case_id,
             health_score=sc,
             net_worth=nw,
-            total_assets=ta,
-            total_liabilities=tl,
+            total_assets=round(nw + debt, 2),
+            total_liabilities=debt,
             monthly_income=inc,
             monthly_expenses=exp,
             monthly_free_cashflow=cf,

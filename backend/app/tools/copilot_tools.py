@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Literal, Optional
 from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
@@ -408,6 +409,109 @@ def move_kanban_card(
     except Exception as e:
         return f"Error moviendo tarjeta en el tablero: {str(e)}"
 
+@tool
+def project_growth(
+    column: str,
+    rate_pct: float,
+    compounding: bool = True,
+    start_date: Optional[str] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Aplica una proyeccion de crecimiento mensual (lineal o compuesto) a una columna de la tabla mensual en todos los meses registrados.
+    
+    Args:
+        column: Nombre de la columna (ej: 'Ingresos', 'Gastos_Fijos', 'Ahorro_Libre').
+        rate_pct: Porcentaje mensual de crecimiento (ej: 10.0 para un 10% cada mes).
+        compounding: True para crecimiento compuesto mes a mes (ej: mes2 = mes1 * (1 + rate/100)), False para lineal.
+        start_date: Fecha de inicio opcional ('YYYY-MM'). Si se omite, inicia desde el mes en curso o primer mes futuro.
+    """
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    session = _get_session_from_config(config)
+
+    try:
+        from frontend import table_store as ts
+        tb_data = ts.load(case_id=case_id)
+        cols = list(tb_data.get("columns", []))
+        rows = tb_data.get("rows", [])
+
+        if column not in cols:
+            cols.append(column)
+            for r in rows:
+                if column not in r:
+                    r[column] = 0.0
+
+        if not rows:
+            return f"No hay filas registradas en la tabla para proyectar {column}."
+
+        start_idx = 0
+        if start_date:
+            for i, r in enumerate(rows):
+                if r.get("date") == start_date:
+                    start_idx = i
+                    break
+        else:
+            now_m = datetime.now().strftime("%Y-%m")
+            for i, r in enumerate(rows):
+                if r.get("date") == now_m:
+                    start_idx = i
+                    break
+
+        multiplier = 1.0 + (rate_pct / 100.0)
+        base_val = 0.0
+        if start_idx > 0 and column in rows[start_idx - 1]:
+            base_val = float(rows[start_idx - 1][column])
+        if base_val <= 0.0 and column in rows[start_idx]:
+            base_val = float(rows[start_idx][column])
+        if base_val <= 0.0 and session.dashboard:
+            base_val = session.dashboard.monthly_income if column == "Ingresos" else session.dashboard.monthly_expenses
+        if base_val <= 0.0:
+            base_val = 15000.0
+
+        current_val = base_val
+        summary_items = []
+        chart_cats = []
+        chart_vals = []
+
+        for i in range(start_idx, len(rows)):
+            step = i - start_idx + 1
+            if compounding:
+                current_val = round(base_val * (multiplier ** step), 2)
+            else:
+                current_val = round(base_val * (1.0 + (rate_pct / 100.0) * step), 2)
+
+            r_date = rows[i]["date"]
+            rows[i][column] = current_val
+            summary_items.append(f"{r_date}: ${current_val:,.2f}")
+            chart_cats.append(r_date)
+            chart_vals.append(current_val)
+
+        tb_data["columns"] = cols
+        tb_data["rows"] = rows
+        ts.save(tb_data, case_id=case_id)
+
+        norm_col = session._normalize_metric_key(column)
+        if norm_col in ("monthly_income", "monthly_expenses"):
+            first_val = float(rows[start_idx][column])
+            session.update_dashboard_metric(norm_col, first_val, reason=f"Proyeccion de {column} (+{rate_pct}% mensual {'compuesto' if compounding else 'lineal'})")
+
+        chart_title = f"Proyeccion de {column} (+{rate_pct}% mensual {'compuesto' if compounding else 'lineal'})"
+        session.pending_charts.append({
+            "type": "line",
+            "title": chart_title,
+            "labels": chart_cats,
+            "categories": chart_cats,
+            "values": chart_vals
+        })
+
+        comp_str = "compuesto" if compounding else "lineal"
+        return (
+            f"Proyeccion de {column} aplicada con exito (+{rate_pct}% mensual {comp_str}) en {len(chart_cats)} meses. "
+            f"Primeros meses: {', '.join(summary_items[:4])}..."
+        )
+    except Exception as e:
+        return f"Error aplicando proyeccion de crecimiento en tabla: {str(e)}"
+
 ALL_COPILOT_TOOLS = [
     manage_task,
     update_dashboard_metric,
@@ -426,4 +530,5 @@ ALL_COPILOT_TOOLS = [
     add_kanban_card,
     move_kanban_card,
     delete_kanban_card,
+    project_growth,
 ]
