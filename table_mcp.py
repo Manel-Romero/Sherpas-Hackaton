@@ -47,13 +47,40 @@ def delete_row(date: str) -> dict:
     return ts.save(data)
 
 @mcp.tool()
-def add_column(name: str, default: float = 0.0) -> dict:
-    """Add a numeric column, filled with `default` for every month."""
-    data = ts.load()
-    data["columns"].append(name)
-    for r in data["rows"]:
-        r[name] = default
-    return ts.save(data)
+def add_column(name: str, default: float = 0.0, formula: str | None = None) -> dict:
+    """Add a numeric column, filled with `default` or calculated with an Excel-like formula."""
+    return ts.add_column(name, default, formula)
+
+@mcp.tool()
+def apply_column_formula(
+    column: str,
+    formula: str,
+    start_date: str | None = None,
+    initial_value: float | None = None
+) -> dict:
+    """Apply an Excel-like formula to a column across months (e.g. 'prev * 1.10', 'Ingresos * 0.15')."""
+    return ts.apply_column_formula(column, formula, start_date, initial_value)
+
+@mcp.tool()
+def set_cell_formula(date: str, column: str, formula: str) -> dict:
+    """Evaluate and set an Excel-like formula on a specific cell (e.g. '=prev * 1.10', '=Ingresos - Gastos_Fijos')."""
+    return ts.set_cell_formula(date, column, formula)
+
+@mcp.tool()
+def evaluate_formula(expression: str, variables: dict | None = None) -> float:
+    """Evaluate an open financial or mathematical formula (e.g. '15000 * (1.10 ** 12)')."""
+    ctx = variables or {}
+    return ts.evaluate_formula(expression, ctx)
+
+@mcp.tool()
+def spreadsheet_aggregate(
+    column: str,
+    operation: str = "sum",
+    start_date: str | None = None,
+    end_date: str | None = None
+) -> float:
+    """Calculate Excel aggregation (sum, average, min, max, growth_rate) over a column."""
+    return ts.spreadsheet_aggregate(column, operation, start_date, end_date)
 
 @mcp.tool()
 def delete_column(name: str) -> dict:

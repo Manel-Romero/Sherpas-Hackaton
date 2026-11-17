@@ -10,6 +10,7 @@ Dates are monthly strings ("YYYY-MM"); every other value is a number.
 import json
 import os
 import re
+import math
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +20,32 @@ BASE_DATA_DIR = Path(__file__).resolve().parent / "data" / "cases"
 DATA_FILE = Path(os.environ.get("TABLE_JSON", Path(__file__).with_name("table.json")))
 DATE_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _lock = threading.Lock()
+
+SAFE_FUNCTIONS = {
+    "min": min,
+    "max": max,
+    "abs": abs,
+    "round": round,
+    "pow": pow,
+    "sum": sum,
+    "sqrt": math.sqrt,
+    "exp": math.exp,
+    "log": math.log,
+}
+
+
+def evaluate_formula(formula: str, context: dict) -> float:
+    """Evalua una formula matematica o expresion estilo Excel de forma segura."""
+    cleaned = formula.strip()
+    if cleaned.startswith("="):
+        cleaned = cleaned[1:].strip()
+
+    scope = {"__builtins__": None, **SAFE_FUNCTIONS, **context}
+    try:
+        res = eval(cleaned, scope)
+        return float(res)
+    except Exception as e:
+        raise ValueError(f"Error evaluando formula '{formula}': {str(e)}")
 
 
 def set_case(case_id: str = "michael-carter") -> Path:
@@ -179,7 +206,12 @@ def delete_row(date: str, case_id: str | None = None) -> dict:
     return save(data)
 
 
-def add_column(name: str, default: float = 0.0, case_id: str | None = None) -> dict:
+def add_column(
+    name: str,
+    default: float = 0.0,
+    formula: str | None = None,
+    case_id: str | None = None
+) -> dict:
     if case_id:
         set_case(case_id)
     data = load()
@@ -188,8 +220,180 @@ def add_column(name: str, default: float = 0.0, case_id: str | None = None) -> d
         for r in data["rows"]:
             if name not in r:
                 r[name] = default
-        return save(data)
+        data = save(data)
+    if formula:
+        return apply_column_formula(name, formula, case_id=case_id)
     return data
+
+
+def apply_column_formula(
+    column: str,
+    formula: str,
+    start_date: str | None = None,
+    initial_value: float | None = None,
+    case_id: str | None = None
+) -> dict:
+    """Aplica una formula estilo Excel a una columna a lo largo de las filas mensuales.
+
+    Variables en cada fila:
+      - Nombres de columnas existentes (ej: Ingresos, Gastos_Fijos, etc.)
+      - prev: valor de la celda en la fila anterior (o initial_value para la primera fila)
+      - t: paso temporal relativo (0, 1, 2, ...) desde start_date
+      - row_index: indice absoluto de la fila
+      - date: mes YYYY-MM
+      - value: valor actual de la celda
+      - Funciones matematicas: min, max, round, abs, pow, sum, sqrt
+    """
+    if case_id:
+        set_case(case_id)
+    data = load()
+    if column not in data["columns"]:
+        data["columns"].append(column)
+
+    rows = data.get("rows", [])
+    if not rows:
+        return data
+
+    start_idx = 0
+    if start_date:
+        if str(start_date).lower().strip() in ("current", "now", "presente"):
+            now_m = datetime.now().strftime("%Y-%m")
+            for i, r in enumerate(rows):
+                if r.get("date") == now_m:
+                    start_idx = i
+                    break
+        else:
+            norm_sd = normalize_date(start_date)
+            for i, r in enumerate(rows):
+                if r.get("date") == norm_sd:
+                    start_idx = i
+                    break
+
+    prev_val = 0.0
+    if initial_value is not None:
+        prev_val = float(initial_value)
+    elif start_idx > 0 and column in rows[start_idx - 1]:
+        prev_val = to_number(rows[start_idx - 1][column])
+    elif column in rows[start_idx]:
+        prev_val = to_number(rows[start_idx][column])
+
+    for i in range(start_idx, len(rows)):
+        r = rows[i]
+        t_step = i - start_idx
+        current_cell_val = to_number(r.get(column, 0.0))
+
+        ctx = {
+            "prev": prev_val,
+            "t": t_step,
+            "row_index": i,
+            "date": r.get("date", ""),
+            "value": current_cell_val,
+        }
+        for c in data["columns"]:
+            c_val = to_number(r.get(c, 0.0))
+            ctx[c] = c_val
+            ctx[c.lower()] = c_val
+            clean_col = re.sub(r"[^a-zA-Z0-9_]", "_", c.strip())
+            ctx[clean_col] = c_val
+            ctx[clean_col.lower()] = c_val
+
+        eval_res = evaluate_formula(formula, ctx)
+        new_val = round(eval_res, 2)
+        r[column] = new_val
+        prev_val = new_val
+
+    return save(data)
+
+
+def set_cell_formula(date: str, column: str, formula: str, case_id: str | None = None) -> dict:
+    """Evalua y asigna una formula a una celda especifica (date, column)."""
+    if case_id:
+        set_case(case_id)
+    data = load()
+    d = normalize_date(date)
+    if column not in data["columns"]:
+        data["columns"].append(column)
+
+    row_target = None
+    target_idx = 0
+    for idx, r in enumerate(data["rows"]):
+        if r["date"] == d:
+            row_target = r
+            target_idx = idx
+            break
+
+    if row_target is None:
+        row_target = {"date": d, **{c: 0.0 for c in data["columns"]}}
+        data["rows"].append(row_target)
+        data["rows"].sort(key=lambda x: x["date"])
+        target_idx = data["rows"].index(row_target)
+
+    prev_val = 0.0
+    if target_idx > 0:
+        prev_row = data["rows"][target_idx - 1]
+        prev_val = to_number(prev_row.get(column, 0.0))
+
+    ctx = {
+        "prev": prev_val,
+        "t": 0,
+        "row_index": target_idx,
+        "date": d,
+        "value": to_number(row_target.get(column, 0.0)),
+    }
+    for c in data["columns"]:
+        c_val = to_number(row_target.get(c, 0.0))
+        ctx[c] = c_val
+        ctx[c.lower()] = c_val
+        clean_col = re.sub(r"[^a-zA-Z0-9_]", "_", c.strip())
+        ctx[clean_col] = c_val
+        ctx[clean_col.lower()] = c_val
+
+    new_val = round(evaluate_formula(formula, ctx), 2)
+    row_target[column] = new_val
+    return save(data)
+
+
+def spreadsheet_aggregate(
+    column: str,
+    operation: str = "sum",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    case_id: str | None = None
+) -> float:
+    """Calcula agregaciones estilo Excel (sum, average, min, max, growth_rate) sobre una columna."""
+    if case_id:
+        set_case(case_id)
+    data = load()
+    if column not in data.get("columns", []):
+        raise ValueError(f"Columna '{column}' no encontrada en la tabla.")
+
+    rows = data.get("rows", [])
+    if start_date:
+        sd = normalize_date(start_date)
+        rows = [r for r in rows if r.get("date", "") >= sd]
+    if end_date:
+        ed = normalize_date(end_date)
+        rows = [r for r in rows if r.get("date", "") <= ed]
+
+    values = [to_number(r.get(column, 0.0)) for r in rows]
+    if not values:
+        return 0.0
+
+    op = operation.lower().strip()
+    if op in ("sum", "suma", "total"):
+        return round(sum(values), 2)
+    elif op in ("average", "avg", "mean", "promedio"):
+        return round(sum(values) / len(values), 2)
+    elif op in ("min", "minimo"):
+        return round(min(values), 2)
+    elif op in ("max", "maximo"):
+        return round(max(values), 2)
+    elif op in ("growth_rate", "crecimiento"):
+        if values[0] != 0:
+            return round(((values[-1] - values[0]) / abs(values[0])) * 100.0, 2)
+        return 0.0
+    else:
+        raise ValueError(f"Operacion desconocida: {operation}. Usa sum, average, min, max o growth_rate.")
 
 
 def delete_column(name: str, case_id: str | None = None) -> dict:

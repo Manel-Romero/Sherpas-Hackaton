@@ -271,3 +271,71 @@ def test_audit_logger_and_additional_tools(tmp_path, monkeypatch):
     assert "RESPONSE" in types
 
 
+def test_open_excel_tools(tmp_path, monkeypatch):
+    # Comprueba las herramientas abiertas de hoja de calculo estilo Excel (formulas de columna, celdas y evaluador libre)
+    from backend.app.tools.copilot_tools import (
+        apply_column_formula,
+        set_cell_formula,
+        evaluate_formula,
+        spreadsheet_aggregate,
+        add_column,
+        set_cell,
+        get_table,
+    )
+    from frontend import table_store as ts
+
+    test_case = "test-case-excel"
+    t_file = tmp_path / "table.json"
+    monkeypatch.setenv("TABLE_JSON", str(t_file))
+
+    # Inicializar tabla con ingresos=10000, gastos=6000
+    ts.initialize_default_table(test_case, 10000.0, 6000.0, 5000.0, 80000.0)
+    config = RunnableConfig(configurable={"session_id": "s_excel", "case_id": test_case})
+
+    # 1. Evaluar formula matematica libre estilo Excel
+    res_calc = evaluate_formula.invoke({"expression": "10000 * (1.10 ** 2)"}, config=config)
+    assert "12,100.00" in res_calc
+
+    # 2. Anadir columna calculada con formula (ej: Ahorro_Meta = 20% de Ingresos)
+    res_add_col = add_column.invoke({
+        "name": "Ahorro_Meta",
+        "formula": "Ingresos * 0.20"
+    }, config=config)
+    assert "calculada con formula" in res_add_col
+
+    tb_data = ts.load(test_case)
+    assert "Ahorro_Meta" in tb_data["columns"]
+    assert tb_data["rows"][0]["Ahorro_Meta"] == 2000.0
+
+    # 3. Aplicar formula compuesta a columna Ingresos (crecimiento del 10% compuesto mes a mes)
+    res_formula = apply_column_formula.invoke({
+        "column": "Ingresos",
+        "formula": "prev * 1.10"
+    }, config=config)
+    assert "aplicada a columna 'Ingresos'" in res_formula
+
+    tb_after = ts.load(test_case)
+    # Verificar que el segundo mes proyectado crecio respecto al primero
+    assert tb_after["rows"][-1]["Ingresos"] > tb_after["rows"][0]["Ingresos"]
+    # Verificar que Ahorro_Libre y Patrimonio se recalcularon dinamicamente
+    assert "Ahorro_Libre" in tb_after["columns"]
+    assert tb_after["rows"][-1]["Ahorro_Libre"] == round(tb_after["rows"][-1]["Ingresos"] - tb_after["rows"][-1]["Gastos_Fijos"], 2)
+
+    # 4. Asignar celda individual mediante formula estilo Excel
+    first_date = tb_after["rows"][0]["date"]
+    res_cell_f = set_cell_formula.invoke({
+        "date": first_date,
+        "column": "Gastos_Fijos",
+        "formula": "prev + 1500"
+    }, config=config)
+    assert "calculada con formula" in res_cell_f
+
+    # 5. Agregacion estilo Excel (sum, avg, max)
+    res_sum = spreadsheet_aggregate.invoke({"column": "Ingresos", "operation": "sum"}, config=config)
+    assert "SUM" in res_sum
+    res_avg = spreadsheet_aggregate.invoke({"column": "Ingresos", "operation": "average"}, config=config)
+    assert "AVERAGE" in res_avg
+    res_growth = spreadsheet_aggregate.invoke({"column": "Ingresos", "operation": "growth_rate"}, config=config)
+    assert "GROWTH_RATE" in res_growth
+
+

@@ -230,17 +230,142 @@ def delete_row(
         return f"Error eliminando fila: {str(e)}"
 
 @tool
-def add_table_column(
-    name: str,
-    default: float = 0.0,
+def set_cell_formula(
+    date: str,
+    column: str,
+    formula: str,
     config: RunnableConfig = None
 ) -> str:
-    """Anade una nueva columna a la hoja de calculo mensual (ej: 'Fondo_Herencia', 'Amortizacion_Extra')."""
+    """Evalua y asigna una formula o funcion estilo Excel a una celda especifica (ej: formula='prev * 1.10', 'Ingresos * 0.20', '15000 + 2000')."""
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
         from frontend import table_store as ts
-        ts.add_column(name, default, case_id=case_id)
+        data = ts.set_cell_formula(date, column, formula, case_id=case_id)
+        res_val = 0.0
+        for r in data.get("rows", []):
+            if r.get("date") == ts.normalize_date(date):
+                res_val = r.get(column, 0.0)
+                break
+        return f"Celda ({date}, {column}) calculada con formula '{formula}' -> {res_val} con exito."
+    except Exception as e:
+        return f"Error evaluando celda con formula: {str(e)}"
+
+@tool
+def apply_column_formula(
+    column: str,
+    formula: str,
+    start_date: Optional[str] = None,
+    initial_value: Optional[float] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Aplica una formula o funcion estilo Excel a una columna a traves de los meses (ej: formula='prev * 1.10' para interes compuesto, 'Ingresos - Gastos_Fijos' para balance, 'Ingresos * 0.15' para ahorro, 'max(0, prev - 500)' para amortizacion).
+
+    Variables disponibles en la formula:
+      - Nombres de columnas de la fila (ej: Ingresos, Gastos_Fijos, etc.)
+      - prev: valor de la celda en la fila anterior (o initial_value)
+      - t: paso temporal (0, 1, 2, ...) desde el inicio
+      - row_index: indice absoluto de la fila
+      - date: fecha YYYY-MM
+      - value: valor actual de la celda
+      - Funciones matematicas: min, max, round, abs, pow, sum, sqrt
+    """
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    session = _get_session_from_config(config)
+
+    try:
+        from frontend import table_store as ts
+        tb_data = ts.apply_column_formula(
+            column=column,
+            formula=formula,
+            start_date=start_date,
+            initial_value=initial_value,
+            case_id=case_id
+        )
+        rows = tb_data.get("rows", [])
+
+        norm_col = session._normalize_metric_key(column)
+        if norm_col in ("monthly_income", "monthly_expenses") and rows:
+            start_idx = 0
+            if start_date:
+                norm_sd = ts.normalize_date(start_date)
+                for i, r in enumerate(rows):
+                    if r.get("date") == norm_sd:
+                        start_idx = i
+                        break
+            else:
+                now_m = datetime.now().strftime("%Y-%m")
+                for i, r in enumerate(rows):
+                    if r.get("date") == now_m:
+                        start_idx = i
+                        break
+            first_val = float(rows[start_idx].get(column, 0.0))
+            session.update_dashboard_metric(norm_col, first_val, reason=f"Formula en columna {column}: {formula}")
+
+        chart_cats = [r["date"] for r in rows if column in r]
+        chart_vals = [float(r[column]) for r in rows if column in r]
+        session.pending_charts.append({
+            "type": "line",
+            "title": f"Proyeccion de {column} (Formula: {formula})",
+            "labels": chart_cats,
+            "categories": chart_cats,
+            "values": chart_vals
+        })
+
+        preview = [f"{r['date']}: ${float(r[column]):,.2f}" for r in rows[:4] if column in r]
+        return f"Formula '{formula}' aplicada a columna '{column}' en {len(rows)} meses. Primeros meses: {', '.join(preview)}..."
+    except Exception as e:
+        return f"Error aplicando formula en columna: {str(e)}"
+
+@tool
+def evaluate_formula(
+    expression: str,
+    variables: Optional[dict[str, float]] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Calcula y evalua cualquier formula o expresion matematica/financiera estilo Excel (ej: '15000 * (1.10 ** 12)', 'PV * (1 + 0.07)**10', etc.)."""
+    try:
+        from frontend import table_store as ts
+        ctx = dict(variables or {})
+        result = ts.evaluate_formula(expression, ctx)
+        return f"Resultado de '{expression}': {result:,.2f}"
+    except Exception as e:
+        return f"Error calculando expresion '{expression}': {str(e)}"
+
+@tool
+def spreadsheet_aggregate(
+    column: str,
+    operation: Literal["sum", "average", "min", "max", "growth_rate"] = "sum",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Calcula operaciones de agregacion estilo Excel (sum, average, min, max, growth_rate) sobre una columna de la tabla mensual."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        from frontend import table_store as ts
+        res = ts.spreadsheet_aggregate(column, operation, start_date, end_date, case_id=case_id)
+        return f"Agregacion {operation.upper()} en columna '{column}': {res:,.2f}"
+    except Exception as e:
+        return f"Error calculando agregacion: {str(e)}"
+
+@tool
+def add_table_column(
+    name: str,
+    default: float = 0.0,
+    formula: Optional[str] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Anade una nueva columna a la hoja de calculo mensual (ej: 'Fondo_Herencia', 'Amortizacion_Extra', 'Ahorro_Vacaciones'). Si se proporciona formula, calcula los valores en toda la tabla."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        from frontend import table_store as ts
+        ts.add_column(name, default, formula=formula, case_id=case_id)
+        if formula:
+            return f"Columna '{name}' anadida y calculada con formula '{formula}' en la tabla mensual."
         return f"Columna '{name}' anadida con exito a la tabla mensual."
     except Exception as e:
         return f"Error anadiendo columna: {str(e)}"
@@ -249,14 +374,17 @@ def add_table_column(
 def add_column(
     name: str,
     default: float = 0.0,
+    formula: Optional[str] = None,
     config: RunnableConfig = None
 ) -> str:
-    """Anade una nueva columna numerica a la tabla mensual (alias de add_table_column)."""
+    """Anade una nueva columna numerica a la tabla mensual con valor por defecto o formula estilo Excel (alias de add_table_column)."""
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
         from frontend import table_store as ts
-        ts.add_column(name, default, case_id=case_id)
+        ts.add_column(name, default, formula=formula, case_id=case_id)
+        if formula:
+            return f"Columna '{name}' anadida y calculada con formula '{formula}' en la tabla mensual."
         return f"Columna '{name}' anadida con exito a la tabla mensual."
     except Exception as e:
         return f"Error anadiendo columna: {str(e)}"
@@ -521,11 +649,15 @@ ALL_COPILOT_TOOLS = [
     modify_table_cell,
     set_cell,
     set_cells,
+    set_cell_formula,
+    apply_column_formula,
     set_row,
     delete_row,
     add_table_column,
     add_column,
     delete_column,
+    evaluate_formula,
+    spreadsheet_aggregate,
     manage_box,
     add_kanban_card,
     move_kanban_card,

@@ -20,6 +20,10 @@ from table_store import (
     from_df,
     next_month,
     default_month,
+    evaluate_formula,
+    apply_column_formula,
+    set_cell_formula,
+    spreadsheet_aggregate,
 )
 
 __all__ = [
@@ -43,4 +47,8 @@ __all__ = [
     "from_df",
     "next_month",
     "default_month",
+    "evaluate_formula",
+    "apply_column_formula",
+    "set_cell_formula",
+    "spreadsheet_aggregate",
 ]
