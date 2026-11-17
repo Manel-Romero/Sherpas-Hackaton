@@ -761,30 +761,23 @@ def notify_agent_of_kanban_change(
 
     if new_status == "done":
         user_msg = (
-            f"He marcado como COMPLETADA la tarea '{title}' en el tablero Kanban. "
-            f"Impacto estimado: {impact}. Categoria: {category}. "
-            f"Dame la enhorabuena por cumplir este objetivo, analiza si esto modifica algo pertinente en mi plan financiero "
-            f"(por ejemplo reduccion de deudas, liberacion de flujo libre mensual o ahorro), "
-            f"y dime que deberiamos ajustar ahora o cual es el siguiente paso."
+            f"He completado la tarea '{title}' en el tablero Kanban. "
+            f"Dame la enhorabuena y explicame con claridad el siguiente paso prioritario y que debo hacer ahora."
         )
         st.toast(f"🎉 ¡Enhorabuena por cumplir: '{title}'!", icon="🎉")
     elif new_status == "in_process":
         user_msg = (
-            f"He puesto en marcha la tarea '{title}' en el tablero Kanban (columna En Proceso). "
-            f"Impacto estimado: {impact}. Categoria: {category}. "
-            f"Analiza si hay alguna recomendacion clave para ejecutarla bien o si impacta en el plan."
+            f"He puesto en marcha la tarea '{title}' en el tablero Kanban. "
+            f"Explicame las mejores pautas para ejecutarla bien y que debo tener en cuenta."
         )
         st.toast(f"🚀 Tarea '{title}' puesta en proceso.", icon="🚀")
     elif action == "delete":
-        user_msg = (
-            f"He eliminado la tarea '{title}' del tablero Kanban. "
-            f"Analiza si esto modifica el plan financiero o si debemos compensarlo."
-        )
+        user_msg = f"He eliminado la tarea '{title}' del tablero Kanban."
         st.toast(f"🗑️ Tarea '{title}' eliminada.", icon="🗑️")
     elif action == "add":
         user_msg = (
-            f"He anadido una nueva tarea al tablero Kanban: '{title}'. Impacto: {impact}. "
-            f"Analiza como encaja en mi plan de choque y que ajustes son pertinentes."
+            f"He anadido la tarea '{title}' al tablero Kanban. "
+            f"Explicame como encaja en mi plan y consejos para abordarla."
         )
         st.toast(f"➕ Nueva tarea anadida: '{title}'.", icon="📋")
     else:
