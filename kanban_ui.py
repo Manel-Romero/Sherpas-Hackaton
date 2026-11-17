@@ -1,6 +1,8 @@
-"""Tablero Kanban interactivo con tarjetas estructuradas, badges de categoria e impacto,
-descripcion breve y panel expandible para detalle completo de la tarea.
+"""Tablero Kanban interactivo con modal emergente centrado en pantalla para el detalle,
+sincronizacion reactiva con el Co-Pilot y notificaciones de cumplimiento o ajuste del plan.
 """
+import json
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -74,7 +76,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
     outline: 1px dashed var(--accent);
   }
 
-  /* Tarjeta estructurada */
+  /* Tarjeta estructurada en columna */
   .card {
     position: relative;
     background: var(--surface-2);
@@ -82,12 +84,13 @@ BOARD_HTML = r"""<!DOCTYPE html>
     border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 10px;
-    cursor: grab;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
   }
   .card:hover {
     border-color: var(--border-strong);
     box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+    transform: translateY(-1px);
   }
   .card.dragging {
     opacity: 0.35;
@@ -153,7 +156,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
     color: #ef4444;
   }
 
-  /* Titulo y texto breve */
+  /* Titulo y texto breve en la tarjeta */
   .title {
     font-weight: 600;
     font-size: 0.94rem;
@@ -170,7 +173,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
     overflow-wrap: anywhere;
   }
 
-  /* Pie de tarjeta con disparador de detalle */
+  /* Pie de tarjeta con boton ver detalle */
   .card-footer {
     display: flex;
     justify-content: space-between;
@@ -178,83 +181,251 @@ BOARD_HTML = r"""<!DOCTYPE html>
     padding-top: 6px;
     border-top: 1px solid rgba(255,255,255,0.05);
   }
-  .toggle-btn {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
+  .modal-open-btn {
+    background: rgba(79, 140, 255, 0.08);
+    border: 1px solid rgba(79, 140, 255, 0.22);
     color: var(--accent);
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: 0.76rem;
+    font-weight: 600;
     border-radius: 6px;
-    padding: 3px 8px;
+    padding: 4px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
-  .toggle-btn:hover {
-    background: rgba(79, 140, 255, 0.18);
+  .modal-open-btn:hover {
+    background: rgba(79, 140, 255, 0.22);
     border-color: var(--accent);
     color: #fff;
   }
 
-  /* Panel desplegable con descripcion extendida y pasos */
-  .details-pane {
+  /* MODAL CENTRADO EN LA PANTALLA */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 99999;
     display: none;
-    margin-top: 10px;
-    padding: 10px 12px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    box-sizing: border-box;
+  }
+  .modal-overlay.open {
+    display: flex !important;
+  }
+  .modal-dialog {
+    background: #181b23;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.82), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+    padding: 24px 28px;
+    position: relative;
+    box-sizing: border-box;
+    animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.92) translateY(8px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .modal-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .modal-close-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
     border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
   }
-  .details-pane.open {
-    display: block;
+  .modal-close-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ef4444;
   }
-  .section-label {
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f4f5f7;
+    line-height: 1.35;
+    margin-bottom: 14px;
+    overflow-wrap: anywhere;
+  }
+  .modal-section-box {
+    background: rgba(79, 140, 255, 0.08);
+    border: 1px solid rgba(79, 140, 255, 0.22);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .modal-subtitle {
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--muted);
-    letter-spacing: 0.04em;
-    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
   }
-  .detailed-text {
-    font-size: 0.84rem;
+  .modal-short-desc {
+    font-size: 0.9rem;
+    color: #f4f5f7;
+    line-height: 1.45;
+  }
+  .modal-detailed-desc {
+    font-size: 0.88rem;
     color: #e2e8f0;
-    line-height: 1.5;
-    margin-bottom: 8px;
+    line-height: 1.55;
+    margin-bottom: 14px;
     white-space: pre-wrap;
   }
-  .steps-list {
-    margin: 4px 0 8px 18px;
+  .modal-steps-list {
+    margin: 6px 0 16px 20px;
     padding: 0;
   }
-  .steps-list li {
-    font-size: 0.82rem;
+  .modal-steps-list li {
+    font-size: 0.86rem;
     color: var(--text);
-    line-height: 1.45;
-    margin-bottom: 4px;
+    line-height: 1.5;
+    margin-bottom: 6px;
   }
-  .meta-grid {
+  .modal-meta-grid {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 14px 0 18px;
+    padding: 10px 12px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
   }
   .meta-pill {
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     background: rgba(0,0,0,0.3);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 2px 7px;
+    padding: 3px 8px;
     color: var(--muted);
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
+  }
+  .btn-action-primary {
+    background: #22c55e;
+    color: #0b1e10;
+    font-weight: 700;
+    font-size: 0.84rem;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-action-primary:hover {
+    background: #16a34a;
+    color: #fff;
+  }
+  .btn-action-secondary {
+    background: rgba(79, 140, 255, 0.18);
+    color: #93c5fd;
+    font-weight: 600;
+    font-size: 0.84rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(79, 140, 255, 0.35);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-action-secondary:hover {
+    background: rgba(79, 140, 255, 0.3);
+    color: #fff;
+  }
+  .btn-action-close {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 0.84rem;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-action-close:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text);
   }
 </style>
 </head>
 <body>
 <div id="board" class="board"></div>
+
+<!-- Modal Centrado -->
+<div id="taskModal" class="modal-overlay">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-badges" id="modalBadges"></div>
+      <button class="modal-close-btn" id="modalCloseBtn" title="Cerrar">✕</button>
+    </div>
+    
+    <div class="modal-title" id="modalTitle"></div>
+    
+    <div class="modal-section-box">
+      <div class="modal-subtitle">RESUMEN EJECUTIVO (BREVE)</div>
+      <div class="modal-short-desc" id="modalShortDesc"></div>
+    </div>
+
+    <div class="modal-body-section" id="modalDescSection">
+      <div class="modal-subtitle">EXPLICACION Y CONTEXTO FINANCIERO EXTENDIDO</div>
+      <div class="modal-detailed-desc" id="modalDetailedDesc"></div>
+    </div>
+
+    <div class="modal-body-section" id="modalStepsSection">
+      <div class="modal-subtitle">PASOS RECOMENDADOS DE EJECUCION</div>
+      <ol class="modal-steps-list" id="modalStepsList"></ol>
+    </div>
+
+    <div class="modal-meta-grid" id="modalMetaGrid"></div>
+
+    <div class="modal-actions" id="modalActions">
+      <button class="btn-action-secondary" id="modalMoveBtn">🚀 En proceso</button>
+      <button class="btn-action-primary" id="modalCompleteBtn">✅ Marcar como Completada</button>
+      <button class="btn-action-close" id="modalFooterCloseBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const board = document.getElementById("board");
+const modal = document.getElementById("taskModal");
 let lastArgs = null, lastLayout = "", dragged = null, dropped = false, seq = 0;
+let activeModalCard = null;
 
 const CAT_STYLES = {
   debt: { label: "Deuda", icon: "💳", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.3)" },
@@ -268,14 +439,13 @@ const CAT_STYLES = {
   general: { label: "General", icon: "📌", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.12)", border: "rgba(148, 163, 184, 0.25)" }
 };
 
-// ---- Protocolo Streamlit ----
 function post(type, extra) {
   window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, extra), "*");
 }
 function setHeight() {
   setTimeout(() => {
-    post("streamlit:setFrameHeight", {height: Math.max(board.scrollHeight + 24, 280)});
-  }, 20);
+    post("streamlit:setFrameHeight", {height: Math.max(board.scrollHeight + 30, 320)});
+  }, 25);
 }
 function emit(value) {
   value.nonce = Date.now() + "-" + (++seq);
@@ -316,6 +486,103 @@ function cardAfter(body, y) {
   });
   return best.el;
 }
+
+// Modal en el centro
+function openCardModal(c) {
+  activeModalCard = c;
+  
+  const catKey = (c.category || "general").toLowerCase();
+  const catConf = CAT_STYLES[catKey] || CAT_STYLES.general;
+  const badgesBox = document.getElementById("modalBadges");
+  badgesBox.innerHTML = "";
+  
+  const catB = el("span", "badge badge-category", catConf.icon + " " + catConf.label);
+  catB.style.color = catConf.color;
+  catB.style.backgroundColor = catConf.bg;
+  catB.style.borderColor = catConf.border;
+  badgesBox.append(catB);
+  
+  if (c.impact && c.impact.trim()) {
+    badgesBox.append(el("span", "badge badge-impact", "✨ " + c.impact.trim()));
+  }
+  if (c.week) {
+    badgesBox.append(el("span", "badge badge-week", "📅 Semana " + c.week));
+  }
+
+  document.getElementById("modalTitle").textContent = c.title || "Tarea";
+
+  const shortText = c.short_description || (c.content ? c.content.split("\n")[0] : "");
+  document.getElementById("modalShortDesc").textContent = shortText || "Sin descripcion breve.";
+
+  const fullDesc = c.detailed_description || c.content || shortText;
+  document.getElementById("modalDetailedDesc").textContent = fullDesc;
+
+  const stepsList = document.getElementById("modalStepsList");
+  const stepsSec = document.getElementById("modalStepsSection");
+  stepsList.innerHTML = "";
+  if (Array.isArray(c.steps) && c.steps.length > 0) {
+    stepsSec.style.display = "block";
+    c.steps.forEach(s => stepsList.append(el("li", "", s)));
+  } else {
+    stepsSec.style.display = "none";
+  }
+
+  const metaGrid = document.getElementById("modalMetaGrid");
+  metaGrid.innerHTML = "";
+  metaGrid.append(el("span", "meta-pill", "Categoria: " + (catConf.label || c.category)));
+  if (c.impact) metaGrid.append(el("span", "meta-pill", "Impacto estimado: " + c.impact));
+  if (c.week) metaGrid.append(el("span", "meta-pill", "Semana asignada: " + c.week));
+  const stLabel = (c.status === "done" ? "Completada" : (c.status === "in_process" ? "En proceso" : "Por hacer"));
+  metaGrid.append(el("span", "meta-pill", "Columna actual: " + stLabel));
+
+  const completeBtn = document.getElementById("modalCompleteBtn");
+  const moveBtn = document.getElementById("modalMoveBtn");
+  
+  if (c.status === "done") {
+    completeBtn.style.display = "none";
+    moveBtn.textContent = "↩️ Mover a Por Hacer";
+    moveBtn.onclick = () => { moveCardModal(c.id, "todo"); };
+  } else if (c.status === "in_process") {
+    completeBtn.style.display = "inline-block";
+    completeBtn.textContent = "✅ Marcar como Completada";
+    completeBtn.onclick = () => { moveCardModal(c.id, "done"); };
+    moveBtn.textContent = "↩️ Mover a Por Hacer";
+    moveBtn.onclick = () => { moveCardModal(c.id, "todo"); };
+  } else {
+    completeBtn.style.display = "inline-block";
+    completeBtn.textContent = "✅ Marcar como Completada";
+    completeBtn.onclick = () => { moveCardModal(c.id, "done"); };
+    moveBtn.textContent = "🚀 Mover a En Proceso";
+    moveBtn.onclick = () => { moveCardModal(c.id, "in_process"); };
+  }
+
+  modal.classList.add("open");
+}
+
+function closeCardModal() {
+  modal.classList.remove("open");
+  activeModalCard = null;
+}
+
+function moveCardModal(cardId, targetStatus) {
+  closeCardModal();
+  const curLayout = layoutOf();
+  for (const s in curLayout) {
+    curLayout[s] = curLayout[s].filter(id => id !== cardId);
+  }
+  if (!curLayout[targetStatus]) curLayout[targetStatus] = [];
+  curLayout[targetStatus].push(cardId);
+  emit({type: "move", layout: curLayout});
+}
+
+document.getElementById("modalCloseBtn").addEventListener("click", closeCardModal);
+document.getElementById("modalFooterCloseBtn").addEventListener("click", closeCardModal);
+modal.addEventListener("click", ev => {
+  if (ev.target === modal) closeCardModal();
+});
+window.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && modal.classList.contains("open")) closeCardModal();
+});
 
 function makeCard(c) {
   const card = el("div", "card");
@@ -358,71 +625,27 @@ function makeCard(c) {
   const titleEl = el("div", "title", c.title || "Tarea");
   card.append(titleEl);
 
-  // 3. Descripcion breve (poco texto)
+  // 3. Descripcion breve (poco texto en tarjeta)
   const shortText = c.short_description || (c.content ? c.content.split("\n")[0] : "");
   if (shortText) {
     const shortEl = el("div", "short-desc", shortText);
     card.append(shortEl);
   }
 
-  // 4. Panel desplegable de detalles
-  const detailsPane = el("div", "details-pane");
-
-  const fullDesc = c.detailed_description || c.content || "";
-  if (fullDesc && fullDesc !== shortText) {
-    const detSec = el("div", "section-label", "Explicacion y contexto");
-    const detText = el("div", "detailed-text", fullDesc);
-    detailsPane.append(detSec, detText);
-  }
-
-  if (Array.isArray(c.steps) && c.steps.length > 0) {
-    const stepsSec = el("div", "section-label", "Pasos recomendados");
-    const ol = el("ol", "steps-list");
-    c.steps.forEach(s => {
-      const li = el("li", "", s);
-      ol.append(li);
-    });
-    detailsPane.append(stepsSec, ol);
-  }
-
-  const metaGrid = el("div", "meta-grid");
-  if (c.category) metaGrid.append(el("span", "meta-pill", "Cat: " + (CAT_STYLES[catKey]?.label || c.category)));
-  if (c.impact) metaGrid.append(el("span", "meta-pill", "Impacto: " + c.impact));
-  if (c.week) metaGrid.append(el("span", "meta-pill", "Semana: " + c.week));
-  const stLabel = (c.status === "done" ? "Completada" : (c.status === "in_process" ? "En proceso" : "Por hacer"));
-  metaGrid.append(el("span", "meta-pill", "Estado: " + stLabel));
-  detailsPane.append(metaGrid);
-
-  // 5. Pie de tarjeta con boton para ver detalle
+  // 4. Pie de tarjeta con boton Ver Detalle
   const footer = el("div", "card-footer");
-  const toggleBtn = el("button", "toggle-btn", "▾ Ver detalle");
-  let isOpen = false;
+  const modalBtn = el("button", "modal-open-btn", "🔍 Ver detalle");
+  modalBtn.addEventListener("click", ev => {
+    ev.stopPropagation();
+    openCardModal(c);
+  });
+  footer.append(modalBtn);
+  card.append(footer);
 
-  function toggleDetails(ev) {
-    if (ev) ev.stopPropagation();
-    isOpen = !isOpen;
-    if (isOpen) {
-      detailsPane.classList.add("open");
-      toggleBtn.textContent = "▴ Ocultar detalle";
-      toggleBtn.style.color = "#fff";
-      toggleBtn.style.background = "rgba(79, 140, 255, 0.25)";
-    } else {
-      detailsPane.classList.remove("open");
-      toggleBtn.textContent = "▾ Ver detalle";
-      toggleBtn.style.color = "var(--accent)";
-      toggleBtn.style.background = "rgba(255,255,255,0.04)";
-    }
-    setHeight();
-  }
-
-  toggleBtn.addEventListener("click", toggleDetails);
-  footer.append(toggleBtn);
-  card.append(footer, detailsPane);
-
-  // Clic en la tarjeta despliega o pliega los detalles
+  // Clic en la tarjeta abre el modal en el centro
   card.addEventListener("click", ev => {
-    if (ev.target.closest("button") || ev.target.closest(".details-pane")) return;
-    toggleDetails(ev);
+    if (ev.target.closest("button")) return;
+    openCardModal(c);
   });
 
   // Arrastrar y soltar
@@ -439,7 +662,6 @@ function makeCard(c) {
     clearOver();
     if (!dropped) render(lastArgs);
     dragged = null;
-    setHeight();
   });
 
   return card;
@@ -521,6 +743,95 @@ _write_frontend()
 _board = components.declare_component("kanban_board", path=str(_FRONTEND))
 
 
+def notify_agent_of_kanban_change(
+    action: str,
+    card: dict,
+    new_status: str | None = None,
+    old_status: str | None = None,
+    case_id: str = "michael-carter",
+    session_id: str = "default"
+):
+    """Envia al agente Co-Pilot la modificacion en el tablero Kanban, muestra notificaciones
+
+    y pide al agente evaluar enhorabuena o ajustes pertinentes en el plan financiero.
+    """
+    title = card.get("title", "Tarea")
+    impact = card.get("impact", "")
+    category = card.get("category", "general")
+
+    if new_status == "done":
+        user_msg = (
+            f"He marcado como COMPLETADA la tarea '{title}' en el tablero Kanban. "
+            f"Impacto estimado: {impact}. Categoria: {category}. "
+            f"Dame la enhorabuena por cumplir este objetivo, analiza si esto modifica algo pertinente en mi plan financiero "
+            f"(por ejemplo reduccion de deudas, liberacion de flujo libre mensual o ahorro), "
+            f"y dime que deberiamos ajustar ahora o cual es el siguiente paso."
+        )
+        st.toast(f"🎉 ¡Enhorabuena por cumplir: '{title}'!", icon="🎉")
+    elif new_status == "in_process":
+        user_msg = (
+            f"He puesto en marcha la tarea '{title}' en el tablero Kanban (columna En Proceso). "
+            f"Impacto estimado: {impact}. Categoria: {category}. "
+            f"Analiza si hay alguna recomendacion clave para ejecutarla bien o si impacta en el plan."
+        )
+        st.toast(f"🚀 Tarea '{title}' puesta en proceso.", icon="🚀")
+    elif action == "delete":
+        user_msg = (
+            f"He eliminado la tarea '{title}' del tablero Kanban. "
+            f"Analiza si esto modifica el plan financiero o si debemos compensarlo."
+        )
+        st.toast(f"🗑️ Tarea '{title}' eliminada.", icon="🗑️")
+    elif action == "add":
+        user_msg = (
+            f"He anadido una nueva tarea al tablero Kanban: '{title}'. Impacto: {impact}. "
+            f"Analiza como encaja en mi plan de choque y que ajustes son pertinentes."
+        )
+        st.toast(f"➕ Nueva tarea anadida: '{title}'.", icon="📋")
+    else:
+        user_msg = f"He movido la tarea '{title}' a la columna '{ks.STATUSES.get(new_status, new_status)}'."
+        st.toast(f"📋 Tarea '{title}' movida.", icon="📋")
+
+    try:
+        import httpx
+        api_base = os.environ.get("API_BASE_URL", "http://localhost:8000")
+        payload = {
+            "message": user_msg,
+            "case_id": case_id,
+            "session_id": session_id,
+        }
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(f"{api_base}/api/chat", json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                reply = data.get("reply", "")
+                changes_applied = data.get("changes_applied", False)
+                applied_summary = data.get("applied_summary", "")
+
+                ss = st.session_state
+                if "messages" not in ss:
+                    ss.messages = []
+                ss.messages.append({"role": "user", "content": user_msg})
+                msg_obj = {"role": "assistant", "content": reply}
+                if data.get("chart_to_render"):
+                    msg_obj["chart"] = data["chart_to_render"]
+                ss.messages.append(msg_obj)
+
+                short_reply = reply[:140] + "..." if len(reply) > 140 else reply
+                st.toast(f"💬 Co-Pilot: {short_reply}", icon="💡")
+
+                if changes_applied:
+                    st.toast(f"✅ Plan actualizado: {applied_summary}", icon="📊")
+
+                ss.kanban_agent_alert = {
+                    "card_title": title,
+                    "new_status": new_status,
+                    "reply": reply,
+                    "changes_applied": changes_applied
+                }
+    except Exception:
+        pass
+
+
 def _add_card():
     with st.popover("➕ Anadir tarea estructurada"):
         with st.form("add_card", clear_on_submit=True):
@@ -550,23 +861,28 @@ def _add_card():
                 week = st.number_input("Semana (1 a 4)", min_value=1, max_value=4, value=1)
 
             short_desc = st.text_input("Descripcion breve (1 linea para la vista principal)")
-            detailed_desc = st.text_area("Descripcion detallada y contexto (visible al hacer click)")
+            detailed_desc = st.text_area("Descripcion detallada y contexto (visible en modal centrado)")
             steps_text = st.text_area("Pasos recomendados (uno por linea)")
 
             if st.form_submit_button("Guardar tarea") and title.strip():
                 try:
                     steps_list = [s.strip() for s in steps_text.split("\n") if s.strip()]
-                    ks.add_card(
-                        title=title.strip(),
-                        content=detailed_desc.strip() or short_desc.strip(),
-                        status=status,
-                        short_description=short_desc.strip(),
-                        detailed_description=detailed_desc.strip(),
-                        category=category,
-                        impact=impact.strip(),
-                        week=int(week),
-                        steps=steps_list
-                    )
+                    new_card = {
+                        "title": title.strip(),
+                        "content": detailed_desc.strip() or short_desc.strip(),
+                        "status": status,
+                        "short_description": short_desc.strip(),
+                        "detailed_description": detailed_desc.strip(),
+                        "category": category,
+                        "impact": impact.strip(),
+                        "week": int(week),
+                        "steps": steps_list
+                    }
+                    ks.add_card(**new_card)
+                    ss = st.session_state
+                    case_id = getattr(ss, "case_id", "michael-carter")
+                    session_id = getattr(ss, "session_id", "default")
+                    notify_agent_of_kanban_change("add", new_card, new_status=status, case_id=case_id, session_id=session_id)
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))
@@ -575,13 +891,32 @@ def render():
     ss = st.session_state
     ss.board_rev = ss.get("board_rev", 0) + 1
     ss.kanban_version = ks.version()
+    case_id = getattr(ss, "case_id", "michael-carter")
+    session_id = getattr(ss, "session_id", "default")
+
+    # Banner destacado con el analisis reciente del Co-Pilot si hubo cambio en el Kanban
+    if "kanban_agent_alert" in ss and ss.kanban_agent_alert:
+        alert = ss.kanban_agent_alert
+        is_done = alert.get("new_status") == "done"
+        banner_icon = "🎉" if is_done else "💡"
+        banner_title = f"{banner_icon} Analisis Co-Pilot: {alert.get('card_title', 'Tarea')}"
+        with st.expander(banner_title, expanded=True):
+            st.markdown(alert.get("reply", ""))
+            c_dismiss, _ = st.columns([2, 8])
+            with c_dismiss:
+                if st.button("Cerrar aviso", key="dismiss_kb_alert"):
+                    del ss.kanban_agent_alert
+                    st.rerun()
 
     a, _ = st.columns([3, 6])
     with a:
         _add_card()
 
+    current_data = ks.load()
+    existing_cards = {c["id"]: c for c in current_data.get("cards", [])}
+
     event = _board(
-        cards=ks.load()["cards"],
+        cards=current_data["cards"],
         statuses=ks.STATUSES,
         rev=ss.board_rev,
         key="kanban",
@@ -592,9 +927,38 @@ def render():
         ss.last_nonce = event["nonce"]
         try:
             if event["type"] == "delete":
-                ks.delete_card(event["id"])
+                deleted_id = event["id"]
+                deleted_c = existing_cards.get(deleted_id, {"title": "Tarea"})
+                ks.delete_card(deleted_id)
+                notify_agent_of_kanban_change("delete", deleted_c, case_id=case_id, session_id=session_id)
             elif event["type"] == "move":
+                # Detectar que tarjeta cambio de columna
+                moved_c = None
+                old_st = None
+                new_st = None
+                for col_name, card_ids in event["layout"].items():
+                    for cid in card_ids:
+                        if cid in existing_cards:
+                            if existing_cards[cid].get("status") != col_name:
+                                moved_c = existing_cards[cid]
+                                old_st = existing_cards[cid].get("status")
+                                new_st = col_name
+                                break
+                    if moved_c:
+                        break
+
                 ks.arrange(event["layout"])
+
+                if moved_c and new_st != old_st:
+                    notify_agent_of_kanban_change(
+                        "move",
+                        moved_c,
+                        new_status=new_st,
+                        old_status=old_st,
+                        case_id=case_id,
+                        session_id=session_id
+                    )
+
             ss.kanban_version = ks.version()
         except ValueError as e:
             st.toast(str(e))
