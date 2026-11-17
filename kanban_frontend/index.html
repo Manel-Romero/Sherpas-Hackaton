@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* Change the colors here (they match style.py) */
+  :root {
+    --surface: #111318; --surface-2: #181b23;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.16);
+    --text: #f4f5f7; --muted: rgba(244,245,247,0.62); --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: transparent; color: var(--text);
+               font-family: -apple-system, "Segoe UI", system-ui, sans-serif; }
+  .board { display: grid; gap: 14px; padding: 4px 2px 8px; align-items: start; }
+  @media (max-width: 640px) { .board { grid-template-columns: 1fr !important; } }
+  .column { background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; padding: 12px; }
+  .header { display: flex; justify-content: space-between; font-weight: 600; padding: 2px 4px 10px; }
+  .count { color: var(--muted); font-weight: 500; }
+  .body { min-height: 80px; border-radius: 10px; padding: 2px; }   /* empty columns stay droppable */
+  .body.over { outline: 1px dashed var(--accent); }
+  .card { position: relative; background: var(--surface-2); border: 1px solid var(--border);
+          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: grab; }
+  .card:hover { border-color: var(--border-strong); }
+  .card.dragging { opacity: 0.35; }
+  .title { font-weight: 600; padding-right: 26px; overflow-wrap: anywhere; }
+  .content { color: var(--muted); font-size: 0.9rem; line-height: 1.5; margin-top: 6px;
+             white-space: pre-wrap; overflow-wrap: anywhere; }
+  .x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none;
+       border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .x:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+</style>
+</head>
+<body>
+<div id="board" class="board"></div>
+<script>
+const board = document.getElementById("board");
+let lastArgs = null, lastLayout = "", dragged = null, dropped = false, seq = 0;
+
+// ---- talking to Streamlit (the plain component protocol, no library needed) ----
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, extra), "*");
+}
+function setHeight() { post("streamlit:setFrameHeight", {height: board.scrollHeight + 16}); }
+function emit(value) {                       // nonce makes every event unique
+  value.nonce = Date.now() + "-" + (++seq);
+  post("streamlit:setComponentValue", {value: value, dataType: "json"});
+}
+
+// ---- helpers ----
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;   // textContent: card text can never run as HTML
+  return e;
+}
+function layoutOf() {                        // {status: [card ids in order]} read from the screen
+  const out = {};
+  board.querySelectorAll(".column").forEach(col => {
+    out[col.dataset.status] = [...col.querySelectorAll(".card")].map(c => c.dataset.id);
+  });
+  return out;
+}
+function updateCounts() {
+  board.querySelectorAll(".column").forEach(col => {
+    col.querySelector(".count").textContent = col.querySelectorAll(".card").length;
+  });
+}
+function clearOver() { board.querySelectorAll(".body.over").forEach(b => b.classList.remove("over")); }
+function cardAfter(body, y) {                // the card just below the mouse (null = end of column)
+  let best = {offset: -Infinity, el: null};
+  body.querySelectorAll(".card:not(.dragging)").forEach(c => {
+    const box = c.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > best.offset) best = {offset: offset, el: c};
+  });
+  return best.el;
+}
+
+function makeCard(c) {
+  const card = el("div", "card");
+  card.draggable = true;
+  card.dataset.id = c.id;
+  const x = el("button", "x", "✕");
+  x.title = "Delete card";
+  x.addEventListener("click", ev => { ev.stopPropagation(); emit({type: "delete", id: c.id}); });
+  card.append(x, el("div", "title", c.title));
+  if (c.content) card.append(el("div", "content", c.content));
+
+  card.addEventListener("dragstart", ev => {
+    dragged = card; dropped = false;
+    card.classList.add("dragging");
+    ev.dataTransfer.effectAllowed = "move";
+    ev.dataTransfer.setData("text/plain", c.id);      // Firefox needs some data to start a drag
+  });
+  card.addEventListener("dragend", () => {
+    card.classList.remove("dragging");
+    clearOver();
+    if (!dropped) render(lastArgs);                    // cancelled drag: put everything back
+    dragged = null;
+  });
+  return card;
+}
+
+function render(args) {
+  lastArgs = args;
+  const statuses = Object.entries(args.statuses);
+  board.innerHTML = "";
+  board.style.gridTemplateColumns = "repeat(" + statuses.length + ", 1fr)";
+  for (const [key, label] of statuses) {
+    const col = el("div", "column");
+    col.dataset.status = key;
+    const header = el("div", "header");
+    header.append(el("span", "", label), el("span", "count", "0"));
+    const body = el("div", "body");
+
+    body.addEventListener("dragover", ev => {
+      if (!dragged) return;
+      ev.preventDefault();
+      clearOver(); body.classList.add("over");
+      const after = cardAfter(body, ev.clientY);
+      if (after) { if (after !== dragged.nextElementSibling || dragged.parentNode !== body) body.insertBefore(dragged, after); }
+      else if (dragged.parentNode !== body || dragged !== body.lastElementChild) body.appendChild(dragged);
+    });
+    body.addEventListener("drop", ev => {
+      ev.preventDefault();
+      dropped = true; clearOver(); updateCounts(); setHeight();
+      const now = JSON.stringify(layoutOf());
+      if (now !== lastLayout) { lastLayout = now; emit({type: "move", layout: layoutOf()}); }
+    });
+
+    args.cards.filter(c => c.status === key).forEach(c => body.append(makeCard(c)));
+    col.append(header, body);
+    board.append(col);
+  }
+  updateCounts();
+  lastLayout = JSON.stringify(layoutOf());
+  setHeight();
+}
+
+window.addEventListener("message", ev => {
+  if (ev.data && ev.data.type === "streamlit:render") render(ev.data.args);
+});
+window.addEventListener("resize", setHeight);
+post("streamlit:componentReady", {apiVersion: 1});
+</script>
+</body>
+</html>
