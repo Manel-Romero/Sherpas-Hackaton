@@ -377,7 +377,7 @@ Tienes herramientas nativas de hoja de calculo (tipo Excel) totalmente abiertas 
 11. `spreadsheet_aggregate`: Calcula agregaciones estilo Excel (sum, average, min, max, growth_rate) sobre cualquier columna.
 12. `project_growth`: Aplica una proyeccion de crecimiento mensual (lineal o compuesto) a una columna en todos los meses registrados.
 13. `manage_box`: Gestiona tarjetas estructuradas en el panel vertical y las sincroniza con el tablero Kanban.
-14. `add_kanban_card`: Anade una tarjeta al tablero Kanban (title, content, status 'todo'/'in_process'/'done').
+14. `add_kanban_card`: Anade una tarjeta estructurada al tablero Kanban (title, short_description, detailed_description, category, impact, week, steps, status).
 15. `move_kanban_card`: Mueve una tarjeta de columna en el tablero Kanban.
 16. `delete_kanban_card`: Elimina una tarjeta del tablero Kanban.
 17. `display_chart`: Muestra graficos interactivos en la interfaz (donut, bar, line).

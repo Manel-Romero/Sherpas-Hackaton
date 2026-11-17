@@ -262,26 +262,44 @@ def persist_session_node(state: CaseInitState) -> CaseInitState:
 
             bs.save(boxes_data, case_id=case_id)
 
-            # 3. Sincronizar tambien con el tablero Kanban interactivo
+            # 3. Sincronizar tambien con el tablero Kanban interactivo con campos estructurados
             try:
                 import kanban_store as ks
                 import uuid
                 kb_cards = []
-                act_steps = "\n" + "\n".join([f"* {s}" for s in act.instructions]) if act.instructions else ""
+                act_instr = list(act.instructions) if act.instructions else []
+                act_s_desc = act.reason.split(".")[0].strip() if act.reason else act.title
+                if len(act_s_desc) > 120:
+                    act_s_desc = act_s_desc[:117] + "..."
                 kb_cards.append({
                     "id": uuid.uuid4().hex[:6],
-                    "title": f"[{act.expected_impact}] {act.title}".strip() if act.expected_impact else act.title,
-                    "content": f"{act.reason}{act_steps}".strip(),
-                    "status": "in_process"
+                    "title": act.title,
+                    "short_description": act_s_desc,
+                    "detailed_description": act.reason,
+                    "category": "immediate",
+                    "impact": act.expected_impact or "",
+                    "week": 1,
+                    "steps": act_instr,
+                    "status": "in_process",
+                    "content": act.reason
                 })
                 for t in mp.tasks:
-                    t_steps = "\n" + "\n".join([f"* {s}" for s in t.steps]) if getattr(t, "steps", None) else ""
-                    t_imp = f"[{t.impact.value}] " if t.impact else ""
+                    t_steps = list(t.steps) if getattr(t, "steps", None) else []
+                    t_desc = t.description or t.title
+                    t_s_desc = t_desc.split(".")[0].strip()
+                    if len(t_s_desc) > 120:
+                        t_s_desc = t_s_desc[:117] + "..."
                     kb_cards.append({
-                        "id": uuid.uuid4().hex[:6],
-                        "title": f"{t_imp}{t.title}".strip(),
-                        "content": f"{t.description}{t_steps}".strip(),
-                        "status": "todo"
+                        "id": getattr(t, "id", None) or uuid.uuid4().hex[:6],
+                        "title": t.title,
+                        "short_description": t_s_desc,
+                        "detailed_description": t_desc,
+                        "category": t.category or "savings",
+                        "impact": t.impact.value if t.impact else "",
+                        "week": t.week or 1,
+                        "steps": t_steps,
+                        "status": "todo",
+                        "content": t_desc
                     })
                 ks.save({"cards": kb_cards}, case_id=case_id)
             except Exception as e_kb:

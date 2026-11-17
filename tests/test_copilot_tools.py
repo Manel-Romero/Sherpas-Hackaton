@@ -339,3 +339,79 @@ def test_open_excel_tools(tmp_path, monkeypatch):
     assert "GROWTH_RATE" in res_growth
 
 
+def test_structured_kanban_cards(tmp_path, monkeypatch):
+    # Comprueba la estructura tipada, poco texto en vista previa y detalle extendido
+    import kanban_store as ks
+    from backend.app.tools.copilot_tools import add_kanban_card, manage_box
+
+    k_file = tmp_path / "kanban_structured.json"
+    monkeypatch.setenv("KANBAN_JSON", str(k_file))
+    ks.set_case("test-structured")
+
+    # 1. Crear tarjeta con campos estructurados
+    ks.add_card(
+        title="Amortizar tarjeta Amex",
+        short_description="Reduce deuda cara para liberar liquidez.",
+        detailed_description="Liquidar los $3,500 frena la sangria de intereses al 24.9% TAE.",
+        category="debt",
+        impact="-$3,500 deuda",
+        week=1,
+        steps=["Acceder a la banca online", "Programar amortizacion de $200"],
+        status="in_process"
+    )
+
+    data = ks.load("test-structured")
+    assert len(data["cards"]) == 1
+    c = data["cards"][0]
+    assert c["title"] == "Amortizar tarjeta Amex"
+    assert c["short_description"] == "Reduce deuda cara para liberar liquidez."
+    assert "24.9% TAE" in c["detailed_description"]
+    assert c["category"] == "debt"
+    assert c["impact"] == "-$3,500 deuda"
+    assert c["week"] == 1
+    assert len(c["steps"]) == 2
+    assert c["status"] == "in_process"
+
+    # 2. Comprobar normalizacion inteligente de tarjetas con corchetes en el titulo
+    legacy_data = {
+        "cards": [
+            {
+                "id": "leg_1",
+                "title": "[+$500/mes] Revisar presupuesto familiar",
+                "content": "Ajuste de suscripciones y recorte de ocio.\n* Cancelar servicios duplicados\n* Fijar tope semanal",
+                "status": "todo"
+            }
+        ]
+    }
+    cleaned = ks.clean(legacy_data)
+    c_leg = cleaned["cards"][0]
+    assert c_leg["title"] == "Revisar presupuesto familiar"
+    assert c_leg["impact"] == "+$500/mes"
+    assert "Ajuste de suscripciones" in c_leg["short_description"]
+    assert len(c_leg["steps"]) == 2
+    assert c_leg["steps"][0] == "Cancelar servicios duplicados"
+    assert c_leg["category"] == "lifestyle"
+
+    # 3. Invocacion del tool add_kanban_card con argumentos estructurados
+    from langchain_core.runnables import RunnableConfig
+    config = RunnableConfig(configurable={"session_id": "s_kb", "case_id": "test-structured"})
+    res_tool = add_kanban_card.invoke({
+        "title": "Seguro de responsabilidad civil",
+        "short_description": "Contratar escudo de proteccion patrimonial.",
+        "detailed_description": "Poliza de 1M para blindar activos frente a demandas civiles.",
+        "category": "insurance",
+        "impact": "Escudo $1M",
+        "week": 2,
+        "steps": ["Pedir 3 cotizaciones", "Seleccionar aseguradora"]
+    }, config=config)
+    assert "anadida a la columna 'todo'" in res_tool
+
+    data_after = ks.load("test-structured")
+    assert len(data_after["cards"]) == 2
+    c_tool = data_after["cards"][1]
+    assert c_tool["title"] == "Seguro de responsabilidad civil"
+    assert c_tool["category"] == "insurance"
+    assert c_tool["impact"] == "Escudo $1M"
+
+
+

@@ -1,15 +1,5 @@
-"""Drag-and-drop kanban board with an ✕ on every card.
-
-The board itself is a tiny custom Streamlit component: kanban_frontend/index.html,
-which this file creates by itself from BOARD_HTML
-(plain HTML + JS, embedded below as BOARD_HTML). It sends two kinds of events back to Python:
-  {"type": "move",   "layout": {status: [card ids]}}   (a card was dragged)
-  {"type": "delete", "id": "..."}                      (the ✕ was clicked)
-
-In app.py, inside the first tab:
-    import kanban_ui
-    with kanban:
-        kanban_ui.render()
+"""Tablero Kanban interactivo con tarjetas estructuradas, badges de categoria e impacto,
+descripcion breve y panel expandible para detalle completo de la tarea.
 """
 from pathlib import Path
 
@@ -23,33 +13,241 @@ BOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <style>
-  /* Change the colors here (they match style.py) */
   :root {
-    --surface: #111318; --surface-2: #181b23;
-    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.16);
-    --text: #f4f5f7; --muted: rgba(244,245,247,0.62); --accent: #4f8cff;
+    --surface: #111318;
+    --surface-2: #181b23;
+    --surface-3: #202430;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.18);
+    --text: #f4f5f7;
+    --muted: rgba(244,245,247,0.62);
+    --accent: #4f8cff;
+    --green-bg: rgba(34, 197, 94, 0.12);
+    --green-border: rgba(34, 197, 94, 0.32);
+    --green-text: #4ade80;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; background: transparent; color: var(--text);
-               font-family: -apple-system, "Segoe UI", system-ui, sans-serif; }
-  .board { display: grid; gap: 14px; padding: 4px 2px 8px; align-items: start; }
-  @media (max-width: 640px) { .board { grid-template-columns: 1fr !important; } }
-  .column { background: var(--surface); border: 1px solid var(--border);
-            border-radius: 16px; padding: 12px; }
-  .header { display: flex; justify-content: space-between; font-weight: 600; padding: 2px 4px 10px; }
-  .count { color: var(--muted); font-weight: 500; }
-  .body { min-height: 80px; border-radius: 10px; padding: 2px; }   /* empty columns stay droppable */
-  .body.over { outline: 1px dashed var(--accent); }
-  .card { position: relative; background: var(--surface-2); border: 1px solid var(--border);
-          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: grab; }
-  .card:hover { border-color: var(--border-strong); }
-  .card.dragging { opacity: 0.35; }
-  .title { font-weight: 600; padding-right: 26px; overflow-wrap: anywhere; }
-  .content { color: var(--muted); font-size: 0.9rem; line-height: 1.5; margin-top: 6px;
-             white-space: pre-wrap; overflow-wrap: anywhere; }
-  .x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: none;
-       border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
-  .x:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+  html, body {
+    margin: 0;
+    background: transparent;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  }
+  .board {
+    display: grid;
+    gap: 14px;
+    padding: 4px 2px 14px;
+    align-items: start;
+  }
+  @media (max-width: 640px) {
+    .board { grid-template-columns: 1fr !important; }
+  }
+  .column {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    padding: 2px 4px 10px;
+    font-size: 0.94rem;
+  }
+  .count {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--surface-2);
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .body {
+    min-height: 80px;
+    border-radius: 10px;
+    padding: 2px;
+  }
+  .body.over {
+    outline: 1px dashed var(--accent);
+  }
+
+  /* Tarjeta estructurada */
+  .card {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: grab;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  }
+  .card.dragging {
+    opacity: 0.35;
+    cursor: grabbing;
+  }
+
+  /* Fila superior de badges y boton eliminar */
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .badges-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: calc(100% - 28px);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+  }
+  .badge-category {
+    border: 1px solid transparent;
+  }
+  .badge-impact {
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    color: var(--green-text);
+  }
+  .badge-week {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .x {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .x:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  /* Titulo y texto breve */
+  .title {
+    font-weight: 600;
+    font-size: 0.94rem;
+    color: #f4f5f7;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    overflow-wrap: anywhere;
+  }
+  .short-desc {
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+    margin-bottom: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  /* Pie de tarjeta con disparador de detalle */
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .toggle-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .toggle-btn:hover {
+    background: rgba(79, 140, 255, 0.18);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Panel desplegable con descripcion extendida y pasos */
+  .details-pane {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .details-pane.open {
+    display: block;
+  }
+  .section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .detailed-text {
+    font-size: 0.84rem;
+    color: #e2e8f0;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    white-space: pre-wrap;
+  }
+  .steps-list {
+    margin: 4px 0 8px 18px;
+    padding: 0;
+  }
+  .steps-list li {
+    font-size: 0.82rem;
+    color: var(--text);
+    line-height: 1.45;
+    margin-bottom: 4px;
+  }
+  .meta-grid {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .meta-pill {
+    font-size: 0.72rem;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2px 7px;
+    color: var(--muted);
+  }
 </style>
 </head>
 <body>
@@ -58,37 +256,58 @@ BOARD_HTML = r"""<!DOCTYPE html>
 const board = document.getElementById("board");
 let lastArgs = null, lastLayout = "", dragged = null, dropped = false, seq = 0;
 
-// ---- talking to Streamlit (the plain component protocol, no library needed) ----
+const CAT_STYLES = {
+  debt: { label: "Deuda", icon: "💳", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.3)" },
+  savings: { label: "Ahorro", icon: "💰", color: "#10b981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.3)" },
+  investment: { label: "Inversion", icon: "📈", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.12)", border: "rgba(59, 130, 246, 0.3)" },
+  insurance: { label: "Seguros", icon: "🛡️", color: "#06b6d4", bg: "rgba(6, 182, 212, 0.12)", border: "rgba(6, 182, 212, 0.3)" },
+  lifestyle: { label: "Presupuesto", icon: "🌱", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)", border: "rgba(139, 92, 246, 0.3)" },
+  immediate: { label: "Prioritaria", icon: "⚡", color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.35)" },
+  goal: { label: "Meta", icon: "🎯", color: "#818cf8", bg: "rgba(99, 102, 241, 0.15)", border: "rgba(99, 102, 241, 0.35)" },
+  alerta: { label: "Alerta", icon: "🚨", color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.35)" },
+  general: { label: "General", icon: "📌", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.12)", border: "rgba(148, 163, 184, 0.25)" }
+};
+
+// ---- Protocolo Streamlit ----
 function post(type, extra) {
   window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, extra), "*");
 }
-function setHeight() { post("streamlit:setFrameHeight", {height: board.scrollHeight + 16}); }
-function emit(value) {                       // nonce makes every event unique
+function setHeight() {
+  setTimeout(() => {
+    post("streamlit:setFrameHeight", {height: Math.max(board.scrollHeight + 24, 280)});
+  }, 20);
+}
+function emit(value) {
   value.nonce = Date.now() + "-" + (++seq);
   post("streamlit:setComponentValue", {value: value, dataType: "json"});
 }
 
-// ---- helpers ----
 function el(tag, cls, text) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;   // textContent: card text can never run as HTML
+  if (text !== undefined) e.textContent = text;
   return e;
 }
-function layoutOf() {                        // {status: [card ids in order]} read from the screen
+
+function layoutOf() {
   const out = {};
   board.querySelectorAll(".column").forEach(col => {
     out[col.dataset.status] = [...col.querySelectorAll(".card")].map(c => c.dataset.id);
   });
   return out;
 }
+
 function updateCounts() {
   board.querySelectorAll(".column").forEach(col => {
     col.querySelector(".count").textContent = col.querySelectorAll(".card").length;
   });
 }
-function clearOver() { board.querySelectorAll(".body.over").forEach(b => b.classList.remove("over")); }
-function cardAfter(body, y) {                // the card just below the mouse (null = end of column)
+
+function clearOver() {
+  board.querySelectorAll(".body.over").forEach(b => b.classList.remove("over"));
+}
+
+function cardAfter(body, y) {
   let best = {offset: -Infinity, el: null};
   body.querySelectorAll(".card:not(.dragging)").forEach(c => {
     const box = c.getBoundingClientRect();
@@ -102,24 +321,127 @@ function makeCard(c) {
   const card = el("div", "card");
   card.draggable = true;
   card.dataset.id = c.id;
-  const x = el("button", "x", "✕");
-  x.title = "Delete card";
-  x.addEventListener("click", ev => { ev.stopPropagation(); emit({type: "delete", id: c.id}); });
-  card.append(x, el("div", "title", c.title));
-  if (c.content) card.append(el("div", "content", c.content));
 
+  // 1. Fila de badges superiores y boton eliminar
+  const topRow = el("div", "card-top");
+  const badgesRow = el("div", "badges-row");
+
+  const catKey = (c.category || "general").toLowerCase();
+  const catConf = CAT_STYLES[catKey] || CAT_STYLES.general;
+  const catBadge = el("span", "badge badge-category", catConf.icon + " " + catConf.label);
+  catBadge.style.color = catConf.color;
+  catBadge.style.backgroundColor = catConf.bg;
+  catBadge.style.borderColor = catConf.border;
+  badgesRow.append(catBadge);
+
+  if (c.impact && c.impact.trim()) {
+    const impBadge = el("span", "badge badge-impact", "✨ " + c.impact.trim());
+    badgesRow.append(impBadge);
+  }
+
+  if (c.week) {
+    const weekBadge = el("span", "badge badge-week", "📅 Sem. " + c.week);
+    badgesRow.append(weekBadge);
+  }
+
+  const x = el("button", "x", "✕");
+  x.title = "Eliminar tarea";
+  x.addEventListener("click", ev => {
+    ev.stopPropagation();
+    emit({type: "delete", id: c.id});
+  });
+
+  topRow.append(badgesRow, x);
+  card.append(topRow);
+
+  // 2. Titulo limpio
+  const titleEl = el("div", "title", c.title || "Tarea");
+  card.append(titleEl);
+
+  // 3. Descripcion breve (poco texto)
+  const shortText = c.short_description || (c.content ? c.content.split("\n")[0] : "");
+  if (shortText) {
+    const shortEl = el("div", "short-desc", shortText);
+    card.append(shortEl);
+  }
+
+  // 4. Panel desplegable de detalles
+  const detailsPane = el("div", "details-pane");
+
+  const fullDesc = c.detailed_description || c.content || "";
+  if (fullDesc && fullDesc !== shortText) {
+    const detSec = el("div", "section-label", "Explicacion y contexto");
+    const detText = el("div", "detailed-text", fullDesc);
+    detailsPane.append(detSec, detText);
+  }
+
+  if (Array.isArray(c.steps) && c.steps.length > 0) {
+    const stepsSec = el("div", "section-label", "Pasos recomendados");
+    const ol = el("ol", "steps-list");
+    c.steps.forEach(s => {
+      const li = el("li", "", s);
+      ol.append(li);
+    });
+    detailsPane.append(stepsSec, ol);
+  }
+
+  const metaGrid = el("div", "meta-grid");
+  if (c.category) metaGrid.append(el("span", "meta-pill", "Cat: " + (CAT_STYLES[catKey]?.label || c.category)));
+  if (c.impact) metaGrid.append(el("span", "meta-pill", "Impacto: " + c.impact));
+  if (c.week) metaGrid.append(el("span", "meta-pill", "Semana: " + c.week));
+  const stLabel = (c.status === "done" ? "Completada" : (c.status === "in_process" ? "En proceso" : "Por hacer"));
+  metaGrid.append(el("span", "meta-pill", "Estado: " + stLabel));
+  detailsPane.append(metaGrid);
+
+  // 5. Pie de tarjeta con boton para ver detalle
+  const footer = el("div", "card-footer");
+  const toggleBtn = el("button", "toggle-btn", "▾ Ver detalle");
+  let isOpen = false;
+
+  function toggleDetails(ev) {
+    if (ev) ev.stopPropagation();
+    isOpen = !isOpen;
+    if (isOpen) {
+      detailsPane.classList.add("open");
+      toggleBtn.textContent = "▴ Ocultar detalle";
+      toggleBtn.style.color = "#fff";
+      toggleBtn.style.background = "rgba(79, 140, 255, 0.25)";
+    } else {
+      detailsPane.classList.remove("open");
+      toggleBtn.textContent = "▾ Ver detalle";
+      toggleBtn.style.color = "var(--accent)";
+      toggleBtn.style.background = "rgba(255,255,255,0.04)";
+    }
+    setHeight();
+  }
+
+  toggleBtn.addEventListener("click", toggleDetails);
+  footer.append(toggleBtn);
+  card.append(footer, detailsPane);
+
+  // Clic en la tarjeta despliega o pliega los detalles
+  card.addEventListener("click", ev => {
+    if (ev.target.closest("button") || ev.target.closest(".details-pane")) return;
+    toggleDetails(ev);
+  });
+
+  // Arrastrar y soltar
   card.addEventListener("dragstart", ev => {
-    dragged = card; dropped = false;
+    dragged = card;
+    dropped = false;
     card.classList.add("dragging");
     ev.dataTransfer.effectAllowed = "move";
-    ev.dataTransfer.setData("text/plain", c.id);      // Firefox needs some data to start a drag
+    ev.dataTransfer.setData("text/plain", c.id);
   });
+
   card.addEventListener("dragend", () => {
     card.classList.remove("dragging");
     clearOver();
-    if (!dropped) render(lastArgs);                    // cancelled drag: put everything back
+    if (!dropped) render(lastArgs);
     dragged = null;
+    setHeight();
   });
+
   return card;
 }
 
@@ -138,16 +460,29 @@ function render(args) {
     body.addEventListener("dragover", ev => {
       if (!dragged) return;
       ev.preventDefault();
-      clearOver(); body.classList.add("over");
+      clearOver();
+      body.classList.add("over");
       const after = cardAfter(body, ev.clientY);
-      if (after) { if (after !== dragged.nextElementSibling || dragged.parentNode !== body) body.insertBefore(dragged, after); }
-      else if (dragged.parentNode !== body || dragged !== body.lastElementChild) body.appendChild(dragged);
+      if (after) {
+        if (after !== dragged.nextElementSibling || dragged.parentNode !== body) {
+          body.insertBefore(dragged, after);
+        }
+      } else if (dragged.parentNode !== body || dragged !== body.lastElementChild) {
+        body.appendChild(dragged);
+      }
     });
+
     body.addEventListener("drop", ev => {
       ev.preventDefault();
-      dropped = true; clearOver(); updateCounts(); setHeight();
+      dropped = true;
+      clearOver();
+      updateCounts();
+      setHeight();
       const now = JSON.stringify(layoutOf());
-      if (now !== lastLayout) { lastLayout = now; emit({type: "move", layout: layoutOf()}); }
+      if (now !== lastLayout) {
+        lastLayout = now;
+        emit({type: "move", layout: layoutOf()});
+      }
     });
 
     args.cards.filter(c => c.status === key).forEach(c => body.append(makeCard(c)));
@@ -169,8 +504,6 @@ post("streamlit:componentReady", {apiVersion: 1});
 </html>
 """
 
-# The board's HTML lives in this file (see BOARD_HTML below) and is written to a folder
-# next to this module at startup, so there is nothing else to copy around.
 _FRONTEND = Path(__file__).with_name("kanban_frontend")
 
 def changed() -> bool:
@@ -189,24 +522,61 @@ _board = components.declare_component("kanban_board", path=str(_FRONTEND))
 
 
 def _add_card():
-    with st.popover("➕ Add card"):
+    with st.popover("➕ Anadir tarea estructurada"):
         with st.form("add_card", clear_on_submit=True):
-            title = st.text_input("Title")
-            content = st.text_area("Description")
-            status = st.selectbox("Column", list(ks.STATUSES), format_func=ks.STATUSES.get)
-            if st.form_submit_button("Add") and title.strip():
+            title = st.text_input("Titulo de la tarea (accion concreta)")
+            c_col1, c_col2 = st.columns(2)
+            with c_col1:
+                category = st.selectbox(
+                    "Categoria",
+                    ["debt", "savings", "investment", "insurance", "lifestyle", "immediate", "general"],
+                    format_func=lambda x: {
+                        "debt": "💳 Deuda",
+                        "savings": "💰 Ahorro",
+                        "investment": "📈 Inversion",
+                        "insurance": "🛡️ Seguros",
+                        "lifestyle": "🌱 Presupuesto",
+                        "immediate": "⚡ Prioritaria",
+                        "general": "📌 General"
+                    }.get(x, x.capitalize())
+                )
+            with c_col2:
+                status = st.selectbox("Columna", list(ks.STATUSES), format_func=ks.STATUSES.get)
+
+            c_sub1, c_sub2 = st.columns(2)
+            with c_sub1:
+                impact = st.text_input("Impacto estimado (ej: -$3,500 o +$500/mes)", value="")
+            with c_sub2:
+                week = st.number_input("Semana (1 a 4)", min_value=1, max_value=4, value=1)
+
+            short_desc = st.text_input("Descripcion breve (1 linea para la vista principal)")
+            detailed_desc = st.text_area("Descripcion detallada y contexto (visible al hacer click)")
+            steps_text = st.text_area("Pasos recomendados (uno por linea)")
+
+            if st.form_submit_button("Guardar tarea") and title.strip():
                 try:
-                    ks.add_card(title, content, status)
+                    steps_list = [s.strip() for s in steps_text.split("\n") if s.strip()]
+                    ks.add_card(
+                        title=title.strip(),
+                        content=detailed_desc.strip() or short_desc.strip(),
+                        status=status,
+                        short_description=short_desc.strip(),
+                        detailed_description=detailed_desc.strip(),
+                        category=category,
+                        impact=impact.strip(),
+                        week=int(week),
+                        steps=steps_list
+                    )
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))
 
 def render():
     ss = st.session_state
-    ss.board_rev = ss.get("board_rev", 0) + 1     # changes every run -> the board redraws from the file
-    ss.kanban_version = ks.version()              # the watcher compares against this
+    ss.board_rev = ss.get("board_rev", 0) + 1
+    ss.kanban_version = ks.version()
 
-    a, _ = st.columns([2, 7])
+    a, _ = st.columns([3, 6])
     with a:
         _add_card()
 
@@ -218,8 +588,6 @@ def render():
         default=None,
     )
 
-    # The component keeps returning its LAST event on every rerun,
-    # so each event is handled only once (they carry a unique nonce).
     if event and event.get("nonce") != ss.get("last_nonce"):
         ss.last_nonce = event["nonce"]
         try:
@@ -227,7 +595,7 @@ def render():
                 ks.delete_card(event["id"])
             elif event["type"] == "move":
                 ks.arrange(event["layout"])
-            ss.kanban_version = ks.version()      # our own save: the watcher stays quiet
+            ss.kanban_version = ks.version()
         except ValueError as e:
-            st.toast(str(e))                      # e.g. the AI changed the board meanwhile
-        st.rerun()                                # redraw the board from the file
+            st.toast(str(e))
+        st.rerun()

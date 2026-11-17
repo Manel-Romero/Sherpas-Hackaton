@@ -20,10 +20,14 @@ def manage_task(
     task_id: str,
     title: str = "",
     description: str = "",
+    short_description: str = "",
+    detailed_description: str = "",
+    category: Literal["debt", "savings", "investment", "insurance", "lifestyle", "immediate", "goal", "general"] = "savings",
     week: int = 1,
     impact_metric: str = "Ahorro",
     impact_value: str = "",
-    config: RunnableConfig = None  # Inyectado automaticamente por LangChain en tiempo de ejecucion
+    steps: Optional[list[str]] = None,
+    config: RunnableConfig = None
 ) -> str:
     """Gestiona la lista de tareas pendientes del usuario (anadir, completar o eliminar una tarea)."""
     session = _get_session_from_config(config)
@@ -32,10 +36,14 @@ def manage_task(
         new_task = TaskItem(
             id=task_id or f"task_{len(session.tasks) + 1}",
             title=title or "Nueva tarea recomendada",
+            short_description=short_description or description[:120] if len(description) > 120 else description,
+            detailed_description=detailed_description or description,
             description=description,
             week=week,
+            category=category,
             status="pending",
-            impact=TaskImpact(metric=impact_metric, value=impact_value) if impact_value else None
+            impact=TaskImpact(metric=impact_metric, value=impact_value) if impact_value else None,
+            steps=steps or []
         )
         session.add_task(new_task)
         return f"Tarea '{new_task.title}' anadida correctamente a la lista (Semana {week})."
@@ -409,15 +417,32 @@ def add_kanban_card(
     title: str,
     content: str = "",
     status: Literal["todo", "in_process", "done"] = "todo",
+    short_description: str = "",
+    detailed_description: str = "",
+    category: Literal["debt", "savings", "investment", "insurance", "lifestyle", "immediate", "goal", "general"] = "general",
+    impact: str = "",
+    week: Optional[int] = None,
+    steps: Optional[list[str]] = None,
     config: RunnableConfig = None
 ) -> str:
-    """Anade una nueva tarjeta directamente al tablero Kanban ('todo', 'in_process' o 'done')."""
+    """Anade una nueva tarjeta estructurada directamente al tablero Kanban ('todo', 'in_process' o 'done')."""
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
         import kanban_store as ks
         ks.set_case(case_id)
-        card_res = ks.add_card(title=title, content=content, status=status, case_id=case_id)
+        ks.add_card(
+            title=title,
+            content=content or detailed_description or short_description,
+            status=status,
+            short_description=short_description,
+            detailed_description=detailed_description or content,
+            category=category,
+            impact=impact,
+            week=week,
+            steps=steps or [],
+            case_id=case_id
+        )
         return f"Tarjeta '{title}' anadida a la columna '{status}' en el tablero Kanban."
     except Exception as e:
         return f"Error anadiendo tarjeta al tablero Kanban: {str(e)}"
@@ -452,6 +477,8 @@ def manage_box(
     title: str,
     description: str = "",
     content: str = "",
+    short_description: str = "",
+    detailed_description: str = "",
     category: Literal["immediate", "prioritaria", "savings", "investment", "debt", "insurance", "lifestyle", "alerta", "goal", "general"] = "general",
     impact: str = "",
     week: Optional[int] = None,
@@ -463,15 +490,18 @@ def manage_box(
     Args:
         action: 'add', 'update' o 'delete'
         title: Titulo conciso y claro de la accion (sin corchetes de categoria ni emojis, ej: 'Apertura de cuenta HSA')
-        description: Explicacion accesible y empatica orientada a no expertos (sin jerga bancaria compleja)
+        description: Explicacion accesible y empatica orientada a no expertos
+        short_description: Descripcion breve de 1 linea para la vista previa
+        detailed_description: Explicacion extendida con contexto financiero
         category: Categoria ('immediate', 'prioritaria', 'savings', 'investment', 'debt', 'insurance', 'lifestyle', 'alerta', 'goal', 'general')
         impact: Beneficio cuantificado conciso (ej: '+$500/mes', '-$2,000 en deuda', '+5 pts')
         week: Numero de semana asignada (1 a 4) si aplica
-        steps: Lista de pasos directos a seguir para ejecutar la accion (ej: ['Llamar al banco', 'Ajustar cuota'])
+        steps: Lista de pasos directos a seguir para ejecutar la accion
     """
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
-    desc = description or content
+    desc = detailed_description or description or content
+    s_desc = short_description or (desc[:120] if len(desc) > 120 else desc)
     norm_cat = "immediate" if category == "prioritaria" else category
     try:
         from frontend import boxes_store as bs
@@ -491,10 +521,32 @@ def manage_box(
             kb_data = ks.load(case_id)
             existing = [c for c in kb_data.get("cards", []) if c.get("title") == title]
             if existing:
-                ks.update_card(existing[0]["id"], title=title, content=desc, case_id=case_id)
+                ks.update_card(
+                    existing[0]["id"],
+                    title=title,
+                    content=desc,
+                    short_description=s_desc,
+                    detailed_description=desc,
+                    category=norm_cat,
+                    impact=impact,
+                    week=week,
+                    steps=steps or [],
+                    case_id=case_id
+                )
             else:
                 initial_st = "in_process" if norm_cat in ("immediate", "alerta") else "todo"
-                ks.add_card(title=title, content=desc, status=initial_st, case_id=case_id)
+                ks.add_card(
+                    title=title,
+                    content=desc,
+                    status=initial_st,
+                    short_description=s_desc,
+                    detailed_description=desc,
+                    category=norm_cat,
+                    impact=impact,
+                    week=week,
+                    steps=steps or [],
+                    case_id=case_id
+                )
             return f"Tarjeta '{title}' guardada en el panel vertical."
         elif action == "delete":
             bs.remove_box(title, case_id=case_id)
