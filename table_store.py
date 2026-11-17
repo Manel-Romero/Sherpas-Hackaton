@@ -79,7 +79,6 @@ def version() -> int:
 def to_df(data: dict) -> pd.DataFrame:
     return pd.DataFrame(data["rows"], columns=["date", *data["columns"]])
 
-
 def from_df(df: pd.DataFrame, columns: list[str]) -> dict:
     rows = []
     for rec in df.to_dict("records"):

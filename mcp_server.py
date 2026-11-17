@@ -94,5 +94,15 @@ def delete_card(card_id: str) -> dict:
     """Delete a card."""
     return ks.delete_card(card_id)
 
+import chat_store as cs
+
+@mcp.tool(description=(
+    f"Read earlier messages of the user's chat with you, oldest first. The last {cs.RECENT} messages "
+    f"are already in your context, so use offset={cs.RECENT} to go further back (each call returns up to "
+    f"{cs.MAX_PAGE}). Pass `search` to find messages containing a keyword instead (any age, offset ignored)."
+))
+def get_chat_history(limit: int = 20, offset: int = 0, search: str | None = None) -> dict:
+    return cs.get_messages(limit, offset, search)
+
 if __name__ == "__main__":
     mcp.run()
