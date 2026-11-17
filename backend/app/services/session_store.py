@@ -16,6 +16,8 @@ class SessionData:
         self.chat_history: list[ChatMessage] = []
         self.pending_charts: list[dict[str, Any]] = []
         self.last_tools_executed: list[ToolExecutionLog] = []
+        self.last_change_applied: Optional[str] = None
+        self.recent_tool_audits: list[dict[str, Any]] = []
 
     def add_task(self, task: TaskItem) -> None:
         self.tasks.append(task)

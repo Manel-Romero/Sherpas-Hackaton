@@ -14,6 +14,8 @@ class ToolExecutionLog(BaseModel):
     tool: str
     args: dict[str, Any]
     result: Any
+    modified: bool = False
+    change_summary: Optional[str] = None
 
 class ChatRequest(BaseModel):
     # Peticion de mensaje enviada desde el frontend
@@ -29,3 +31,5 @@ class ChatResponse(BaseModel):
     tasks: Optional[list[TaskItem]] = None
     dashboard: Optional[DashboardState] = None
     chart_to_render: Optional[dict[str, Any]] = None
+    changes_applied: bool = False
+    applied_summary: Optional[str] = None

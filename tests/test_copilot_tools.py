@@ -201,3 +201,73 @@ def test_manage_box_tool(tmp_path, monkeypatch):
     data_after = bs.load(case_id=test_case)
     assert len(data_after["boxes"]) == 0
 
+def test_audit_logger_and_additional_tools(tmp_path, monkeypatch):
+    # Comprueba el registro de prompts, respuestas y llamadas MCP con deteccion de modificaciones
+    from backend.app.services.audit_logger import (
+        log_prompt,
+        log_tool_call,
+        log_response,
+        get_recent_logs
+    )
+    from backend.app.tools.copilot_tools import (
+        get_table,
+        set_cell,
+        set_cells,
+        add_column,
+        delete_column,
+        add_kanban_card,
+        move_kanban_card,
+        delete_kanban_card
+    )
+
+    test_case = "test-case-audit"
+    t_file = tmp_path / "table.json"
+    k_file = tmp_path / "kanban.json"
+    monkeypatch.setenv("TABLE_JSON", str(t_file))
+    monkeypatch.setenv("KANBAN_JSON", str(k_file))
+
+    from frontend import table_store as ts
+    import kanban_store as ks
+    ts.initialize_default_table(test_case, 10000.0, 6000.0, 5000.0, 80000.0)
+    ks.set_case(test_case)
+
+    config = RunnableConfig(configurable={"session_id": "s_audit", "case_id": test_case})
+
+    # 1. Log prompt
+    log_prompt("s_audit", test_case, "Quiero anadir una columna de Viajes", "System prompt preview")
+
+    # 2. Tool add_column
+    res_col = add_column.invoke({"name": "Viajes", "default": 200.0}, config=config)
+    assert "anadida con exito" in res_col
+
+    # 3. Tool set_cell
+    res_cell = set_cell.invoke({"date": "2026-05", "column": "Viajes", "value": 500.0}, config=config)
+    assert "actualizada a 500.0" in res_cell
+
+    # 4. Tool get_table
+    res_tb = get_table.invoke({}, config=config)
+    assert "Viajes" in res_tb
+
+    # 5. Tool add_kanban_card
+    res_kb_add = add_kanban_card.invoke({"title": "Reservar hotel", "status": "todo"}, config=config)
+    assert "anadida a la columna 'todo'" in res_kb_add
+
+    # 6. Tool move_kanban_card
+    res_kb_mv = move_kanban_card.invoke({"card_title_or_id": "Reservar hotel", "status": "done"}, config=config)
+    assert "movida a la columna 'done'" in res_kb_mv
+
+    # 7. Log tool call with modified=True
+    log_tool_call("s_audit", test_case, "set_cell", {"date": "2026-05", "column": "Viajes", "value": 500.0}, res_cell, True, "Celda actualizada")
+
+    # 8. Log response
+    log_response("s_audit", test_case, "He anadido la columna y actualizado la celda", tools_count=2, changes_applied=True)
+
+    # 9. Verificar get_recent_logs
+    recent = get_recent_logs(case_id=test_case, limit=10)
+    assert len(recent) >= 3
+    types = [r["type"] for r in recent]
+    assert "PROMPT" in types
+    assert "MCP_TOOL_CALL" in types
+    assert "RESPONSE" in types
+
+

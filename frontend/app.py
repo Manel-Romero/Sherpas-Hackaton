@@ -86,6 +86,15 @@ if "messages" not in ss:
     ss.messages = []
 if "cases_list" not in ss:
     ss.cases_list = []
+if "notify_changes" not in ss:
+    ss.notify_changes = False
+if "notify_msg" not in ss:
+    ss.notify_msg = ""
+
+# Notificacion emergente toast si hubo cambios aplicados
+if ss.notify_changes:
+    st.toast(f"Cambios aplicados: {ss.notify_msg}", icon="✅")
+    ss.notify_changes = False
 
 ts.set_case(ss.case_id)
 ks.set_case(ss.case_id)
@@ -457,6 +466,39 @@ with tab_chat:
             if m.get("chart"):
                 render_chart(m["chart"])
 
+    # Registro colapsable de auditoria de llamadas MCP y modificaciones reales
+    with st.expander("Registro de llamadas MCP y auditoria en vivo", expanded=False):
+        try:
+            r_audit = httpx.get(f"{API_BASE_URL}/api/chat/audit-logs/{ss.case_id}", timeout=3.0)
+            if r_audit.status_code == 200:
+                audit_items = r_audit.json().get("logs", [])
+                if audit_items:
+                    for it in reversed(audit_items[-10:]):
+                        itype = it.get("type", "")
+                        ts_str = it.get("timestamp", "")[:19]
+                        if itype == "MCP_TOOL_CALL":
+                            mod_badge = "MODIFICADO: SI" if it.get("modified") else "MODIFICADO: NO"
+                            st.markdown(f"**[{ts_str}] Tool MCP: `{it.get('tool')}`** ({mod_badge})")
+                            st.caption(f"Argumentos: `{it.get('args')}`")
+                            st.caption(f"Resultado: {str(it.get('result'))[:180]}")
+                            if it.get("diff"):
+                                st.caption(f"Detalle: *{it.get('diff')}*")
+                            st.divider()
+                        elif itype == "PROMPT":
+                            st.markdown(f"**[{ts_str}] Prompt Usuario:** {it.get('user_message')}")
+                            st.divider()
+                        elif itype == "RESPONSE":
+                            chg_badge = "CAMBIOS APLICADOS: SI" if it.get("changes_applied") else "CAMBIOS: NO"
+                            st.markdown(f"**[{ts_str}] Respuesta Co-Pilot** ({chg_badge})")
+                            st.caption(f"{it.get('reply', '')[:160]}...")
+                            st.divider()
+                else:
+                    st.caption("No hay llamadas MCP registradas aun en esta sesion.")
+            else:
+                st.caption("Auditoria no disponible temporalmente.")
+        except Exception:
+            st.caption("Servicio de auditoria no conectado.")
+
 # =============================================================================
 # CHAT INPUT Y STREAMING SSE
 # =============================================================================
@@ -473,6 +515,8 @@ if active_prompt:
             placeholder = st.empty()
             full_response = ""
             tools_used = []
+            applied_diffs = []
+            changes_applied_flag = False
             received_chart = None
 
             ss.is_streaming = True
@@ -510,9 +554,18 @@ if active_prompt:
                                 elif ev_type == "tool_start":
                                     tool_name = event.get("tool", "herramienta")
                                     tools_used.append(tool_name)
-                                    status_info = f"\n\n*⚡ Ejecutando accion: {tool_name}...*"
-                                    placeholder.markdown((full_response + status_info) if full_response else f"*⚡ Ejecutando accion: {tool_name}...*")
+                                    status_info = f"\n\n*⚡ Ejecutando accion MCP: {tool_name}...*"
+                                    placeholder.markdown((full_response + status_info) if full_response else f"*⚡ Ejecutando accion MCP: {tool_name}...*")
                                 elif ev_type == "tool_end":
+                                    tool_name = event.get("tool", "herramienta")
+                                    is_mod = event.get("modified", False)
+                                    t_diff = event.get("diff", "")
+                                    if is_mod:
+                                        changes_applied_flag = True
+                                        if t_diff:
+                                            applied_diffs.append(t_diff)
+                                        else:
+                                            applied_diffs.append(tool_name)
                                     placeholder.markdown(full_response + "▌" if full_response else "*Procesando respuesta...*")
                                 elif ev_type == "state":
                                     state_reply = event.get("full_reply", "")
@@ -521,6 +574,10 @@ if active_prompt:
                                     chart_data = event.get("chart_to_render")
                                     if chart_data:
                                         received_chart = chart_data
+                                    if event.get("changes_applied"):
+                                        changes_applied_flag = True
+                                        if event.get("applied_summary"):
+                                            applied_diffs.append(event.get("applied_summary"))
                                 elif ev_type == "error":
                                     err_detail = event.get("detail", "Error en el servidor")
                                     placeholder.error(f"Error en el servidor: {err_detail}")
@@ -537,6 +594,12 @@ if active_prompt:
                     ss.messages.append(msg_payload)
                 else:
                     placeholder.warning("El Co-Pilot no emitio respuesta de texto.")
+
+                if changes_applied_flag:
+                    summary_msg = "; ".join(dict.fromkeys(applied_diffs)) or "Cambios aplicados con exito"
+                    ss.notify_changes = True
+                    ss.notify_msg = summary_msg
+                    st.toast(f"Cambios aplicados: {summary_msg}", icon="✅")
 
                 # Sincronizar estado interno de tabla y cajas para que las otras pestanas se actualicen
                 ss.table_version = ts.version(ss.case_id)
@@ -571,6 +634,7 @@ def watcher():
     if ss.get("is_streaming", False):
         return
     if table_ui.changed() or kanban_ui.changed():
+        st.toast("Cambios aplicados", icon="🔄")
         st.rerun()
 
 watcher()

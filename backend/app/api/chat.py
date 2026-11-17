@@ -21,6 +21,7 @@ async def send_chat_message(request: ChatRequest):
 
     session = session_store.get_or_create(session_id, case_id)
     session.pending_charts.clear()
+    session.last_change_applied = None
 
     # Configuracion de ejecucion con thread_id para checkpointer de memoria
     run_config = {
@@ -68,11 +69,21 @@ async def send_chat_message(request: ChatRequest):
 
         for m in messages:
             if isinstance(m, ToolMessage):
+                t_name = getattr(m, "name", "tool")
+                audit_match = next(
+                    (a for a in reversed(session.recent_tool_audits) if a.get("tool") == t_name),
+                    None
+                )
+                t_args = audit_match.get("args", {}) if audit_match else {}
+                t_mod = audit_match.get("modified", False) if audit_match else False
+                t_diff = audit_match.get("diff", "") if audit_match else ""
                 tool_logs.append(
                     ToolExecutionLog(
-                        tool=getattr(m, "name", "tool"),
-                        args={},
-                        result=m.content
+                        tool=t_name,
+                        args=t_args,
+                        result=m.content,
+                        modified=t_mod,
+                        change_summary=t_diff
                     )
                 )
             elif isinstance(m, AIMessage):
@@ -87,13 +98,19 @@ async def send_chat_message(request: ChatRequest):
 
         # Capturar cualquier grafico pendiente generado por la herramienta display_chart
         chart_to_render = session.pending_charts[-1] if session.pending_charts else None
+        has_changes = bool(session.last_change_applied) or any(t.modified for t in tool_logs)
+        applied_desc = session.last_change_applied if session.last_change_applied else (
+            ", ".join([t.change_summary for t in tool_logs if t.modified and t.change_summary])
+        )
 
         return ChatResponse(
             reply=reply_content,
             tools_executed=tool_logs,
             tasks=session.tasks,
             dashboard=session.dashboard,
-            chart_to_render=chart_to_render
+            chart_to_render=chart_to_render,
+            changes_applied=has_changes,
+            applied_summary=applied_desc if has_changes else None
         )
 
     except HTTPException:
@@ -119,6 +136,7 @@ async def send_chat_message_stream(request: ChatRequest):
 
     session = session_store.get_or_create(session_id, case_id)
     session.pending_charts.clear()
+    session.last_change_applied = None
 
     # Configuracion de ejecucion con thread_id para checkpointer de memoria
     run_config = {
@@ -185,11 +203,21 @@ async def send_chat_message_stream(request: ChatRequest):
                     else:
                         output_str = str(output_data)
 
+                    tool_n = event.get("name")
+                    audit_match = next(
+                        (a for a in reversed(session.recent_tool_audits) if a.get("tool") == tool_n),
+                        None
+                    )
+                    t_mod = audit_match.get("modified", False) if audit_match else False
+                    t_diff = audit_match.get("diff", "") if audit_match else ""
+
                     yield ServerSentEvent(
                         data=json.dumps({
                             "type": "tool_end",
-                            "tool": event.get("name"),
-                            "output": output_str
+                            "tool": tool_n,
+                            "output": output_str,
+                            "modified": t_mod,
+                            "diff": t_diff
                         }, ensure_ascii=False, default=str),
                         event="tool_end"
                     )
@@ -221,13 +249,16 @@ async def send_chat_message_stream(request: ChatRequest):
 
             # Emitir el estado actualizado final de la UI (tareas, dashboard, graficos)
             chart_to_render = session.pending_charts[-1] if session.pending_charts else None
+            has_changes = bool(session.last_change_applied)
             yield ServerSentEvent(
                 data=json.dumps({
                     "type": "state",
                     "tasks": [t.model_dump() for t in session.tasks],
                     "dashboard": session.dashboard.model_dump() if session.dashboard else None,
                     "chart_to_render": chart_to_render,
-                    "full_reply": "".join(full_reply_chunks)
+                    "full_reply": "".join(full_reply_chunks),
+                    "changes_applied": has_changes,
+                    "applied_summary": session.last_change_applied
                 }, ensure_ascii=False, default=str),
                 event="state"
             )
@@ -248,3 +279,10 @@ async def send_chat_message_stream(request: ChatRequest):
             )
 
     return EventSourceResponse(event_generator())
+
+@router.get("/audit-logs/{case_id}")
+async def get_case_audit_logs(case_id: str, limit: int = 30):
+    """Devuelve los registros de auditoria recientes de prompts, respuestas y llamadas MCP."""
+    from backend.app.services.audit_logger import get_recent_logs
+    logs = get_recent_logs(case_id=case_id, limit=limit)
+    return {"case_id": case_id, "logs": logs}

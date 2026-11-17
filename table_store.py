@@ -117,6 +117,35 @@ def set_cell(date: str, column: str, value: float, case_id: str | None = None) -
     return save(data)
 
 
+def set_cells(updates: list[dict], case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
+    data = load()
+    rows = {r["date"]: r for r in data["rows"]}
+    for u in updates:
+        d = normalize_date(u["date"])
+        col = u["column"]
+        if col not in data["columns"]:
+            data["columns"].append(col)
+        row = rows.setdefault(d, {"date": d, **{c: 0.0 for c in data["columns"]}})
+        row[col] = to_number(u["value"])
+    data["rows"] = list(rows.values())
+    return save(data)
+
+
+def set_row(date: str, values: dict[str, float], case_id: str | None = None) -> dict:
+    return set_cells([{"date": date, "column": c, "value": v} for c, v in values.items()], case_id=case_id)
+
+
+def delete_row(date: str, case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
+    data = load()
+    d = normalize_date(date)
+    data["rows"] = [r for r in data["rows"] if r["date"] != d]
+    return save(data)
+
+
 def add_column(name: str, default: float = 0.0, case_id: str | None = None) -> dict:
     if case_id:
         set_case(case_id)
@@ -126,6 +155,18 @@ def add_column(name: str, default: float = 0.0, case_id: str | None = None) -> d
         for r in data["rows"]:
             if name not in r:
                 r[name] = default
+        return save(data)
+    return data
+
+
+def delete_column(name: str, case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
+    data = load()
+    if name in data["columns"]:
+        data["columns"].remove(name)
+        for r in data["rows"]:
+            r.pop(name, None)
         return save(data)
     return data
 
