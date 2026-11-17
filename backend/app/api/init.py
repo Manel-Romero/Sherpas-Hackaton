@@ -55,6 +55,14 @@ async def initialize_case(case_id: str, request: Optional[CaseInitRequest] = Non
     session.dashboard = dashboard
     session.summary_executive = summary
 
+    # Sincronizar tambien con sesion default para que nuevas sesiones hereden el estado
+    if session_id != "default":
+        default_session = session_store.get_or_create("default", case_id)
+        default_session.master_plan = master_plan
+        default_session.tasks = list(master_plan.tasks)
+        default_session.dashboard = dashboard
+        default_session.summary_executive = summary
+
     return CaseInitResponse(
         case_id=case_id,
         headline=master_plan.headline,

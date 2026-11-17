@@ -466,39 +466,6 @@ with tab_chat:
             if m.get("chart"):
                 render_chart(m["chart"])
 
-    # Registro colapsable de auditoria de llamadas MCP y modificaciones reales
-    with st.expander("Registro de llamadas MCP y auditoria en vivo", expanded=False):
-        try:
-            r_audit = httpx.get(f"{API_BASE_URL}/api/chat/audit-logs/{ss.case_id}", timeout=3.0)
-            if r_audit.status_code == 200:
-                audit_items = r_audit.json().get("logs", [])
-                if audit_items:
-                    for it in reversed(audit_items[-10:]):
-                        itype = it.get("type", "")
-                        ts_str = it.get("timestamp", "")[:19]
-                        if itype == "MCP_TOOL_CALL":
-                            mod_badge = "MODIFICADO: SI" if it.get("modified") else "MODIFICADO: NO"
-                            st.markdown(f"**[{ts_str}] Tool MCP: `{it.get('tool')}`** ({mod_badge})")
-                            st.caption(f"Argumentos: `{it.get('args')}`")
-                            st.caption(f"Resultado: {str(it.get('result'))[:180]}")
-                            if it.get("diff"):
-                                st.caption(f"Detalle: *{it.get('diff')}*")
-                            st.divider()
-                        elif itype == "PROMPT":
-                            st.markdown(f"**[{ts_str}] Prompt Usuario:** {it.get('user_message')}")
-                            st.divider()
-                        elif itype == "RESPONSE":
-                            chg_badge = "CAMBIOS APLICADOS: SI" if it.get("changes_applied") else "CAMBIOS: NO"
-                            st.markdown(f"**[{ts_str}] Respuesta Co-Pilot** ({chg_badge})")
-                            st.caption(f"{it.get('reply', '')[:160]}...")
-                            st.divider()
-                else:
-                    st.caption("No hay llamadas MCP registradas aun en esta sesion.")
-            else:
-                st.caption("Auditoria no disponible temporalmente.")
-        except Exception:
-            st.caption("Servicio de auditoria no conectado.")
-
 # =============================================================================
 # CHAT INPUT Y STREAMING SSE
 # =============================================================================

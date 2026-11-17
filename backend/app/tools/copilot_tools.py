@@ -58,13 +58,30 @@ def update_dashboard_metric(
     key: str,
     value: float,
     reason: str = "",
-    config: RunnableConfig = None  # Inyectado automaticamente por LangChain en tiempo de ejecucion
+    config: RunnableConfig = None
 ) -> str:
-    """Actualiza una metrica o celda clave del dashboard financiero (ej: net_worth, total_debt, monthly_savings, etc.)."""
+    """Actualiza una metrica o celda clave del dashboard financiero (ej: monthly_income / ingreso_mensual, monthly_expenses / gastos, net_worth / patrimonio_neto, etc.)."""
     session = _get_session_from_config(config)
     success = session.update_dashboard_metric(key, value, reason)
     if success:
-        return f"Metrica '{key}' actualizada a {value}. Motivo: {reason}"
+        configurable = config.get("configurable", {}) if config else {}
+        case_id = configurable.get("case_id", "michael-carter")
+        norm_key = session._normalize_metric_key(key)
+        # Sincronizar tambien con la tabla de proyeccion si es ingreso o gasto
+        if norm_key in ("monthly_income", "monthly_expenses"):
+            try:
+                from frontend import table_store as ts
+                data = ts.load(case_id=case_id)
+                col_name = "Ingresos" if norm_key == "monthly_income" else "Gastos_Fijos"
+                if col_name in data.get("columns", []):
+                    for r in data.get("rows", []):
+                        r[col_name] = float(value)
+                        if "Ingresos" in r and "Gastos_Fijos" in r:
+                            r["Ahorro_Libre"] = round(r["Ingresos"] - r["Gastos_Fijos"], 2)
+                    ts.save(data, case_id=case_id)
+            except Exception:
+                pass
+        return f"Metrica '{key}' actualizada a {value} con exito en el dashboard."
     return f"No se pudo actualizar la metrica '{key}'."
 
 @tool
