@@ -16,13 +16,19 @@ import pandas as pd
 import plotly.graph_objects as go
 
 try:
-    from frontend.style import style
-    from frontend import table_store as ts
-    from frontend import boxes_store as bs
-except ImportError:
     from style import style
     import table_store as ts
-    import boxes_store as bs
+    import kanban_store as ks
+    import kanban_ui
+    import table_ui
+    from frontend import boxes_store as bs
+except ImportError:
+    from frontend.style import style
+    from frontend import table_store as ts
+    import kanban_store as ks
+    import kanban_ui
+    import table_ui
+    from frontend import boxes_store as bs
 
 
 # Configuracion de pagina completa en modo ancho
@@ -80,16 +86,10 @@ if "messages" not in ss:
     ss.messages = []
 if "cases_list" not in ss:
     ss.cases_list = []
-if "editor_gen" not in ss:
-    ss.editor_gen = 0
-if "table_version" not in ss:
-    ss.table_version = 0
-if "boxes_version" not in ss:
-    ss.boxes_version = 0
-if "df" not in ss:
-    ss.df = ts.to_df(ts.load(ss.case_id))
-if "boxes" not in ss:
-    ss.boxes = bs.load(ss.case_id).get("boxes", [])
+
+ts.set_case(ss.case_id)
+ks.set_case(ss.case_id)
+table_ui.refresh()
 
 # =============================================================================
 # COMUNICACION CON BACKEND FASTAPI
@@ -121,12 +121,9 @@ def initialize_case_plan(case_id: str):
                         "content": f"¡Hola! He analizado tu perfil financiero completo de Sherpas. {mp.get('headline', '')}.\n\nTu accion inmediata para hoy es: **{mp.get('immediate_action', {}).get('title', '')}**. ¿En que puedo ayudarte?"
                     }
                 ]
-                # Recargar tabla y cajas
-                ss.df = ts.to_df(ts.load(case_id))
-                ss.boxes = bs.load(case_id).get("boxes", [])
-                ss.table_version = ts.version(case_id)
-                ss.boxes_version = bs.version(case_id)
-                ss.editor_gen += 1
+                ts.set_case(case_id)
+                ks.set_case(case_id)
+                table_ui.refresh()
                 st.success("Plan maestro inicializado con exito")
                 st.rerun()
             else:
@@ -136,16 +133,6 @@ def initialize_case_plan(case_id: str):
 
 if not ss.cases_list:
     fetch_cases()
-
-# Sincronizar versiones de ficheros locales si cambiaron
-if ts.version(ss.case_id) != ss.table_version:
-    ss.table_version = ts.version(ss.case_id)
-    ss.df = ts.to_df(ts.load(ss.case_id))
-    ss.editor_gen += 1
-
-if bs.version(ss.case_id) != ss.boxes_version:
-    ss.boxes_version = bs.version(ss.case_id)
-    ss.boxes = bs.load(ss.case_id).get("boxes", [])
 
 # =============================================================================
 # CABECERA SUPERIOR: SELECTOR Y CARGA DE PLAN
@@ -176,11 +163,9 @@ with head_col1:
         ss.case_id = selected_case
         ss.session_id = f"sess_{selected_case}"
         ss.messages = []
-        ss.df = ts.to_df(ts.load(selected_case))
-        ss.boxes = bs.load(selected_case).get("boxes", [])
-        ss.table_version = ts.version(selected_case)
-        ss.boxes_version = bs.version(selected_case)
-        ss.editor_gen += 1
+        ts.set_case(selected_case)
+        ks.set_case(selected_case)
+        table_ui.refresh()
         st.rerun()
 
 with head_col2:
@@ -382,27 +367,9 @@ def add_column_popover():
 # =============================================================================
 tab_vertical, tab_table, tab_chat = st.tabs(["📋 Plan de Accion", "📊 Proyeccion & Datos", "💬 Chat Co-Pilot"])
 
-# --- Tab 1: Vertical (Cajas y tareas) ---
+# --- Tab 1: Vertical (Tablero Kanban interactivo) ---
 with tab_vertical:
-    boxes = ss.boxes
-    if not boxes:
-        st.info("No hay tarjetas activas. Pulsa 'Cargar / Reiniciar Plan' para generar la sintesis del caso.")
-    else:
-        goal_boxes = [b for b in boxes if b.get("category") == "goal"]
-        immediate_boxes = [b for b in boxes if b.get("category") == "immediate"]
-        other_boxes = [b for b in boxes if b not in goal_boxes and b not in immediate_boxes]
-
-        # 1. Objetivo Maestro (Hero Card)
-        for b in goal_boxes:
-            render_box(b)
-
-        # 2. Accion Inmediata (Hoy)
-        for b in immediate_boxes:
-            render_box(b)
-
-        # 3. Tareas Semanales y Contingencias
-        for b in other_boxes:
-            render_box(b)
+    kanban_ui.render()
 
 # --- Tab 2: Table (Hoja de calculo mensual y graficos) ---
 with tab_table:
@@ -425,7 +392,7 @@ with tab_table:
             c4.markdown(f"<div class='kpi-pill'>Deuda viva: <strong>${active_row['Deuda_Pendiente']:,.0f}</strong></div>", unsafe_allow_html=True)
 
     # Grafico interactivo de evolucion temporal (Patrimonio, Deuda, Ahorro)
-    if not ss.df.empty and len(ss.df) > 1:
+    if "df" in ss and not ss.df.empty and len(ss.df) > 1:
         with st.expander("📈 Proyeccion Financiera a 12 Meses (Plan Sherpas Wealth)", expanded=True):
             st.caption("Evolucion proyectada al cumplir el plan de accion: crecimiento de patrimonio neto (linea azul), amortizacion progresiva de deuda (linea roja punteada) y ahorro libre mensual generado (barras verdes). Reacciona en tiempo real a cualquier cambio en la tabla inferior o imprevisto gestionado por el Co-Pilot.")
             fig_proj = go.Figure()
@@ -462,39 +429,7 @@ with tab_table:
             )
             st.plotly_chart(fig_proj, use_container_width=True)
 
-    add_column_popover()
-
-    columns_in_df = list(ss.df.columns[1:])
-    config = {
-        "date": st.column_config.TextColumn(
-            "Mes (YYYY-MM)",
-            required=True,
-            default=ts.default_month(current_table),
-        )
-    }
-    for c in columns_in_df:
-        config[c] = st.column_config.NumberColumn(c, format="$%.2f")
-
-    edited = st.data_editor(
-        ss.df,
-        key=f"editor-{ss.editor_gen}-{ss.case_id}",
-        num_rows="dynamic",
-        column_config=config,
-        hide_index=True,
-    )
-
-    try:
-        new_data = ts.from_df(edited, columns_in_df)
-        if new_data != current_table:
-            row_added = len(new_data["rows"]) > len(current_table["rows"])
-            ts.save(new_data, case_id=ss.case_id)
-            ss.table_version = ts.version(ss.case_id)
-            if row_added:
-                ss.df = ts.to_df(new_data)
-                ss.editor_gen += 1
-                st.rerun()
-    except ValueError as e:
-        st.error(str(e))
+    table_ui.render()
 
 # --- Tab 3: Chat (Co-Pilot Conversacional en Streaming) ---
 with tab_chat:
@@ -630,16 +565,12 @@ if active_prompt:
 # =============================================================================
 # WATCHER EN SEGUNDO PLANO
 # =============================================================================
-@st.fragment(run_every=2)
+@st.fragment(run_every=1)
 def watcher():
     # Evitar recargas si hay una consulta de chat procesandose
     if ss.get("is_streaming", False):
         return
-    if ts.version(ss.case_id) != ss.table_version or bs.version(ss.case_id) != ss.boxes_version:
-        ss.table_version = ts.version(ss.case_id)
-        ss.boxes_version = bs.version(ss.case_id)
-        ss.df = ts.to_df(ts.load(ss.case_id))
-        ss.boxes = bs.load(ss.case_id).get("boxes", [])
+    if table_ui.changed() or kanban_ui.changed():
         st.rerun()
 
 watcher()

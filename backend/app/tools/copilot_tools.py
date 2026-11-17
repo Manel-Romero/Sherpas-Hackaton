@@ -179,6 +179,8 @@ def manage_box(
     norm_cat = "immediate" if category == "prioritaria" else category
     try:
         from frontend import boxes_store as bs
+        import kanban_store as ks
+        ks.set_case(case_id)
         if action in ("add", "update"):
             bs.add_box(
                 title=title,
@@ -189,13 +191,55 @@ def manage_box(
                 steps=steps,
                 case_id=case_id
             )
+            # Sincronizar con tablero Kanban
+            kb_data = ks.load(case_id)
+            existing = [c for c in kb_data.get("cards", []) if c.get("title") == title]
+            if existing:
+                ks.update_card(existing[0]["id"], title=title, content=desc, case_id=case_id)
+            else:
+                initial_st = "in_process" if norm_cat in ("immediate", "alerta") else "todo"
+                ks.add_card(title=title, content=desc, status=initial_st, case_id=case_id)
             return f"Tarjeta '{title}' guardada en el panel vertical."
         elif action == "delete":
             bs.remove_box(title, case_id=case_id)
+            kb_data = ks.load(case_id)
+            for c in kb_data.get("cards", []):
+                if c.get("title") == title:
+                    ks.delete_card(c["id"], case_id=case_id)
             return f"Tarjeta '{title}' eliminada del panel vertical."
         return f"Accion '{action}' no reconocida."
     except Exception as e:
         return f"Error gestionando tarjeta: {str(e)}"
+
+@tool
+def move_kanban_card(
+    card_title_or_id: str,
+    status: Literal["todo", "in_process", "done"],
+    config: RunnableConfig = None
+) -> str:
+    """Mueve una tarjeta en el tablero Kanban a una columna especifica ('todo', 'in_process', 'done').
+    
+    Args:
+        card_title_or_id: ID de la tarjeta o titulo (ej: 'Revisar presupuesto')
+        status: Columna destino ('todo', 'in_process' o 'done')
+    """
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        import kanban_store as ks
+        ks.set_case(case_id)
+        data = ks.load(case_id)
+        target_id = None
+        for c in data.get("cards", []):
+            if c["id"] == card_title_or_id or card_title_or_id.lower() in c["title"].lower():
+                target_id = c["id"]
+                break
+        if not target_id:
+            return f"No se encontro ninguna tarjeta con titulo o id '{card_title_or_id}'."
+        ks.move_card(target_id, status, case_id=case_id)
+        return f"Tarjeta '{target_id}' movida a la columna '{status}' en el tablero Kanban."
+    except Exception as e:
+        return f"Error moviendo tarjeta en el tablero: {str(e)}"
 
 ALL_COPILOT_TOOLS = [
     manage_task,
@@ -205,4 +249,5 @@ ALL_COPILOT_TOOLS = [
     modify_table_cell,
     add_table_column,
     manage_box,
+    move_kanban_card,
 ]

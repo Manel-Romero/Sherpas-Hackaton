@@ -11,11 +11,50 @@ import threading
 import uuid
 from pathlib import Path
 
+BASE_DATA_DIR = Path(__file__).resolve().parent / "data" / "cases"
 KANBAN_FILE = Path(os.environ.get("KANBAN_JSON", Path(__file__).with_name("kanban.json")))
 _lock = threading.Lock()
 
 # key (stored in the JSON) -> label (shown in the UI). Order = left to right.
 STATUSES = {"todo": "To do", "in_process": "In process", "done": "Done"}
+
+
+def set_case(case_id: str = "michael-carter") -> Path:
+    global KANBAN_FILE
+    target_dir = BASE_DATA_DIR / case_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_file = target_dir / "kanban.json"
+    KANBAN_FILE = target_file
+
+    # Auto-migracion si no existe kanban.json pero si boxes.json
+    if not target_file.exists():
+        boxes_file = target_dir / "boxes.json"
+        if boxes_file.exists():
+            try:
+                raw_boxes = json.loads(boxes_file.read_text(encoding="utf-8"))
+                boxes_list = raw_boxes.get("boxes", []) if isinstance(raw_boxes, dict) else raw_boxes
+                cards = []
+                for b in boxes_list:
+                    cat = b.get("category", "")
+                    st = "in_process" if cat in ("immediate", "prioritaria", "alerta") else "todo"
+                    impact_text = f"[{b['impact']}] " if b.get("impact") else ""
+                    title = f"{impact_text}{b.get('title', 'Tarea')}".strip()
+                    desc_parts = []
+                    if b.get("content"):
+                        desc_parts.append(b["content"])
+                    if b.get("steps"):
+                        desc_parts.append("\n".join([f"* {s}" for s in b["steps"]]))
+                    content = "\n\n".join(desc_parts)
+                    cards.append({
+                        "id": uuid.uuid4().hex[:6],
+                        "title": title,
+                        "content": content,
+                        "status": st
+                    })
+                save({"cards": cards})
+            except Exception:
+                pass
+    return target_file
 
 
 def clean(data: dict) -> dict:
@@ -36,14 +75,18 @@ def clean(data: dict) -> dict:
     return {"cards": cards}
 
 
-def load() -> dict:
+def load(case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
     with _lock:
         if not KANBAN_FILE.exists():
             return {"cards": []}
         return clean(json.loads(KANBAN_FILE.read_text(encoding="utf-8")))
 
 
-def save(data: dict) -> dict:
+def save(data: dict, case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
     data = clean(data)
     with _lock:
         tmp = KANBAN_FILE.with_suffix(".tmp")
@@ -52,8 +95,10 @@ def save(data: dict) -> dict:
     return data
 
 
-def version() -> int:
+def version(case_id: str | None = None) -> int:
     """Changes whenever the file changes (used by the watcher)."""
+    if case_id:
+        set_case(case_id)
     return KANBAN_FILE.stat().st_mtime_ns if KANBAN_FILE.exists() else 0
 
 
@@ -65,13 +110,17 @@ def _find(data: dict, card_id: str) -> dict:
     raise ValueError(f"No card with id '{card_id}'. Existing ids: {[c['id'] for c in data['cards']]}")
 
 
-def add_card(title: str, content: str = "", status: str = "todo") -> dict:
+def add_card(title: str, content: str = "", status: str = "todo", case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
     data = load()
     data["cards"].append({"title": title, "content": content, "status": status})
     return save(data)
 
 
-def update_card(card_id: str, title: str | None = None, content: str | None = None) -> dict:
+def update_card(card_id: str, title: str | None = None, content: str | None = None, case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
     data = load()
     card = _find(data, card_id)
     if title is not None:
@@ -81,8 +130,10 @@ def update_card(card_id: str, title: str | None = None, content: str | None = No
     return save(data)
 
 
-def move_card(card_id: str, status: str) -> dict:
+def move_card(card_id: str, status: str, case_id: str | None = None) -> dict:
     """Move a card to another column; it lands at the bottom of that column."""
+    if case_id:
+        set_case(case_id)
     if status not in STATUSES:
         raise ValueError(f"Invalid status '{status}'. Use one of {list(STATUSES)}.")
     data = load()
@@ -93,10 +144,12 @@ def move_card(card_id: str, status: str) -> dict:
     return save(data)
 
 
-def arrange(layout: dict[str, list[str]]) -> dict:
+def arrange(layout: dict[str, list[str]], case_id: str | None = None) -> dict:
     """Save a drag-and-drop result: {status: [card ids in order]}.
     Refuses if the cards in `layout` aren't exactly the cards in the file
     (e.g. the AI added or deleted one meanwhile), so a stale screen can't overwrite it."""
+    if case_id:
+        set_case(case_id)
     data = load()
     by_id = {c["id"]: c for c in data["cards"]}
     ids = [i for column in layout.values() for i in column]
@@ -110,7 +163,9 @@ def arrange(layout: dict[str, list[str]]) -> dict:
     return save({"cards": cards})
 
 
-def delete_card(card_id: str) -> dict:
+def delete_card(card_id: str, case_id: str | None = None) -> dict:
+    if case_id:
+        set_case(case_id)
     data = load()
     data["cards"].remove(_find(data, card_id))
     return save(data)
