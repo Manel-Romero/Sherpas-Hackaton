@@ -506,6 +506,161 @@ style = """
     [data-testid="stChatMessage"] [data-testid="stButton"] button:hover, [data-testid="stChatMessage"] [data-testid="stButton"] button:hover * { color: var(--text) !important; background: transparent !important; }
     /* Material icons inside buttons keep their own font */
     [data-testid="stIconMaterial"] { font-family: 'Material Symbols Rounded' !important; }
+    /* ==================== GLASS LAYER ====================
+       Translucent, blurred surfaces over a night-mountain backdrop. Appended last so it
+       overrides the flat theme above without touching it. */
+    :root {
+        --glass: rgba(17, 27, 24, 0.50);
+        --glass-strong: rgba(14, 22, 20, 0.74);
+        --glass-hi: rgba(255, 255, 255, 0.06);
+        --glass-hi-2: rgba(255, 255, 255, 0.10);
+        --glass-border: rgba(225, 242, 234, 0.12);
+        --glass-border-hi: rgba(225, 242, 234, 0.24);
+        --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 44px -22px rgba(0, 0, 0, 0.6);
+        --blur: blur(22px) saturate(160%);
+    }
+    /* Backdrop: deep night green, two cool auroras, a faint warm glow and a mountain ridge at the bottom */
+    .stApp {
+        background:
+            url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 360' preserveAspectRatio='none'><path fill='%2329594a' fill-opacity='0.30' d='M0 210 L90 170 L170 196 L290 112 L380 168 L470 128 L590 190 L700 96 L820 166 L930 120 L1040 182 L1150 118 L1260 172 L1360 140 L1440 160 L1440 360 L0 360Z'/><path fill='%23173a31' fill-opacity='0.55' d='M0 262 L130 214 L240 246 L380 186 L500 238 L640 200 L760 252 L890 210 L1020 258 L1150 216 L1290 250 L1440 222 L1440 360 L0 360Z'/><path fill='%230b1714' fill-opacity='0.9' d='M0 312 L160 282 L300 304 L460 270 L620 300 L780 276 L940 306 L1100 280 L1260 302 L1440 284 L1440 360 L0 360Z'/></svg>") bottom center / 100% 34vh no-repeat fixed,
+            radial-gradient(1100px 640px at 8% -12%, rgba(70, 170, 128, 0.30), transparent 62%) fixed,
+            radial-gradient(900px 620px at 104% 6%, rgba(58, 112, 176, 0.26), transparent 60%) fixed,
+            radial-gradient(760px 520px at 62% 112%, rgba(214, 160, 92, 0.13), transparent 62%) fixed,
+            linear-gradient(180deg, #0c1614 0%, #0a1110 60%, #08100e 100%) fixed !important;
+    }
+    [data-testid="stAppViewContainer"], .stMain, [data-testid="stMain"] { background: transparent !important; }
+
+    /* Top bar: frosted strip; the active tab is a glass pill instead of an underline */
+    [role="tablist"] {
+        background: rgba(9, 15, 13, 0.55) !important;
+        -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border-bottom: 1px solid var(--glass-border) !important;
+        box-shadow: 0 10px 30px -20px rgba(0, 0, 0, 0.8);
+    }
+    [role="tab"] { border-bottom: none !important; border-radius: 999px !important; padding: 8px 18px !important; }
+    [role="tab"]:hover { background: var(--glass-hi) !important; }
+    [role="tab"][aria-selected="true"] {
+        background: var(--glass-hi-2) !important;
+        box-shadow: inset 0 0 0 1px var(--glass-border-hi), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    }
+
+    /* Figures band: one glass panel, numbers separated by hairlines */
+    .figures {
+        background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border) !important; border-radius: 18px; box-shadow: var(--glass-shadow);
+        padding: 0 8px 0 24px; margin: 4px 0 18px 0;
+    }
+    .figure { border-right: 1px solid var(--glass-border); padding: 18px 20px 18px 0; }
+
+    /* Panels: expanders, bordered containers, the table and the chart */
+    [data-testid="stExpander"] details, [data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) {
+        background: var(--glass) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border) !important; border-radius: 16px !important; box-shadow: var(--glass-shadow);
+    }
+    [data-testid="stExpander"] summary:hover { background: var(--glass-hi) !important; border-radius: 16px; }
+    [data-testid="stDataFrame"], [data-testid="stDataEditor"], [data-testid="stDataFrameResizable"] {
+        border-radius: 14px; overflow: hidden; border: 1px solid var(--glass-border); box-shadow: var(--glass-shadow);
+    }
+    [data-testid="stPlotlyChart"] { border-radius: 14px; }
+
+    /* Buttons: frosted chips; hover lifts the glass a little */
+    [data-testid="stButton"] button, [data-testid="stPopover"] button, [data-testid="stFormSubmitButton"] button {
+        background: var(--glass-hi) !important; border: 1px solid var(--glass-border-hi) !important;
+        border-radius: 12px !important; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    [data-testid="stButton"] button:hover, [data-testid="stPopover"] button:hover, [data-testid="stFormSubmitButton"] button:hover {
+        background: var(--glass-hi-2) !important; border-color: rgba(225, 242, 234, 0.42) !important;
+    }
+    [data-testid="stButton"] button[kind="primary"], [data-testid="stButton"] button[data-testid="stBaseButton-primary"] {
+        background: linear-gradient(180deg, #e4f1e9, #c4dccf) !important; border-color: transparent !important;
+        box-shadow: 0 8px 24px -10px rgba(134, 201, 164, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+    [data-testid="stButton"] button[kind="primary"], [data-testid="stButton"] button[kind="primary"] *,
+    [data-testid="stButton"] button[data-testid="stBaseButton-primary"], [data-testid="stButton"] button[data-testid="stBaseButton-primary"] * {
+        color: #0b1412 !important;
+    }
+    /* Quiet buttons stay quiet: close crosses on cards and "Escuchar" under replies */
+    [data-testid="stChatMessage"] [data-testid="stButton"] button,
+    [data-testid="stVerticalBlock"]:has(> .element-container .box-marker) [data-testid="stButton"] button {
+        background: transparent !important; border-color: transparent !important; box-shadow: none !important;
+        -webkit-backdrop-filter: none; backdrop-filter: none;
+    }
+
+    /* Login rows and chat suggestions: larger glass tiles */
+    [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button {
+        background: var(--glass) !important; border-radius: 16px !important; box-shadow: var(--glass-shadow) !important;
+        -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+    }
+    [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button:hover {
+        background: rgba(30, 46, 40, 0.62) !important; border-color: var(--glass-border-hi) !important;
+    }
+
+    /* Dialogs (tutorial): frosted sheet over a blurred, dimmed page */
+    [data-testid="stDialog"] {
+        background: rgba(4, 8, 7, 0.45) !important;
+        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    }
+    [data-testid="stDialog"] [role="dialog"] {
+        background: var(--glass-strong) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border-hi) !important; border-radius: 22px !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 40px 90px -30px rgba(0, 0, 0, 0.85) !important;
+    }
+    [data-testid="stDialog"] blockquote { border-left-color: rgba(134, 201, 164, 0.6); }
+
+    /* Popovers and menus */
+    [data-baseweb="popover"] > div, [data-testid="stPopoverBody"] {
+        background: var(--glass-strong) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border-hi) !important; border-radius: 16px !important;
+    }
+
+    /* Chat: your messages are glass bubbles; replies keep their quiet left rule */
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
+        background: var(--glass-hi-2) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border-hi) !important; border-radius: 18px 18px 6px 18px !important;
+        box-shadow: var(--glass-shadow);
+    }
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+        border-left-color: rgba(134, 201, 164, 0.55) !important;
+    }
+    /* Input bar: floating frosted capsule; the strip behind it is transparent */
+    [data-testid="stBottom"], [data-testid="stBottom"] > div { background: transparent !important; }
+    [data-testid="stChatInput"] > div {
+        background: rgba(14, 22, 20, 0.62) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border-hi) !important; border-radius: 18px !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 40px -18px rgba(0, 0, 0, 0.8) !important;
+    }
+    [data-testid="stChatInput"] > div:focus-within { border-color: rgba(214, 230, 220, 0.6) !important; }
+    [data-testid="stChatInputSubmitButton"] { border-radius: 12px !important; }
+
+    /* Toasts and alerts */
+    [data-testid="stToast"], [data-testid="stAlert"] > div {
+        background: var(--glass-strong) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border: 1px solid var(--glass-border) !important; border-radius: 14px !important;
+    }
+    .gloss-tip {
+        background: rgba(16, 25, 22, 0.86) !important; -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+        border-color: var(--glass-border-hi) !important; border-radius: 12px !important;
+    }
+    [data-testid="stProgressBarTrack"] { background: rgba(255, 255, 255, 0.08) !important; border-radius: 999px !important; }
+    [data-testid="stProgressBarTrack"] > div { background: linear-gradient(90deg, #86c9a4, #d6e6dc) !important; border-radius: 999px !important; }
+    /* Dialogs live outside .stApp: give them the same typeface and text colour */
+    [data-testid="stDialog"] p, [data-testid="stDialog"] li, [data-testid="stDialog"] label, [data-testid="stDialog"] button,
+    [data-testid="stDialog"] [data-testid="stMarkdownContainer"], [data-testid="stDialog"] summary {
+        font-family: var(--sans) !important; font-feature-settings: 'tnum' 1, 'kern' 1;
+    }
+    [data-testid="stDialog"] h2, [data-testid="stDialog"] h2 *, [data-testid="stDialog"] h2 [data-testid="stMarkdownContainer"] p,
+    [data-testid="stDialog"] blockquote, [data-testid="stDialog"] blockquote p { font-family: var(--serif) !important; }
+    [data-testid="stDialog"] blockquote { opacity: 1 !important; }
+    /* Popovers live outside .stApp too */
+    [data-baseweb="popover"] p, [data-baseweb="popover"] label, [data-baseweb="popover"] button,
+    [data-baseweb="popover"] input, [data-baseweb="popover"] li, [data-baseweb="popover"] [data-testid="stMarkdownContainer"],
+    [data-testid="stPopoverBody"] p, [data-testid="stPopoverBody"] label, [data-testid="stPopoverBody"] button,
+    [data-testid="stPopoverBody"] input, [data-testid="stPopoverBody"] [data-testid="stMarkdownContainer"],
+    [data-testid="stPopoverBody"] [data-baseweb="select"] div {
+        font-family: var(--sans) !important;
+    }
+
     @media (max-width: 760px) {
         [role="tab"] { padding: 7px 8px !important; margin: 0 !important; font-size: 0.88rem !important; }
         .figure-value { font-size: 1.5rem; }

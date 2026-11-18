@@ -106,6 +106,29 @@
   .btn-action-secondary:hover { border-color: var(--text); }
   .btn-action-close { background: transparent; color: var(--muted); font-weight: 500; border: 1px solid var(--border); }
   .btn-action-close:hover { color: var(--text); border-color: var(--border-strong); }
+
+  /* ---- Glass layer: columns and cards are translucent over the app backdrop ---- */
+  .column {
+    background: rgba(17, 27, 24, 0.58); border: 1px solid rgba(225, 242, 234, 0.12); border-radius: 18px; padding: 14px;
+    -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 20px 44px -22px rgba(0, 0, 0, 0.6);
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.055); border: 1px solid rgba(225, 242, 234, 0.12); border-radius: 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .card:hover { background: rgba(255, 255, 255, 0.085); border-color: rgba(225, 242, 234, 0.26); }
+  .x:hover { background: rgba(255, 255, 255, 0.08); }
+  .body.over { outline: 1px dashed rgba(214, 230, 220, 0.6); border-radius: 12px; }
+  .modal-overlay { background: rgba(4, 8, 7, 0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .modal-dialog {
+    background: rgba(14, 22, 20, 0.80); border: 1px solid rgba(225, 242, 234, 0.24); border-radius: 22px;
+    -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+  }
+  .meta-pill { border-radius: 999px; background: rgba(255, 255, 255, 0.04); }
+  .btn-action-primary, .btn-action-secondary, .btn-action-close { border-radius: 12px; }
 </style>
 </head>
 <body>
@@ -122,17 +145,17 @@
     <div class="modal-title" id="modalTitle"></div>
     
     <div class="modal-section-box">
-      <div class="modal-subtitle">RESUMEN EJECUTIVO (BREVE)</div>
+      <div class="modal-subtitle">Resumen</div>
       <div class="modal-short-desc" id="modalShortDesc"></div>
     </div>
 
     <div class="modal-body-section" id="modalDescSection">
-      <div class="modal-subtitle">EXPLICACION Y CONTEXTO FINANCIERO EXTENDIDO</div>
+      <div class="modal-subtitle">Explicación y contexto</div>
       <div class="modal-detailed-desc" id="modalDetailedDesc"></div>
     </div>
 
     <div class="modal-body-section" id="modalStepsSection">
-      <div class="modal-subtitle">PASOS RECOMENDADOS DE EJECUCION</div>
+      <div class="modal-subtitle">Pasos recomendados</div>
       <ol class="modal-steps-list" id="modalStepsList"></ol>
     </div>
 
@@ -140,7 +163,7 @@
 
     <div class="modal-actions" id="modalActions">
       <button class="btn-action-secondary" id="modalMoveBtn">En proceso</button>
-      <button class="btn-action-primary" id="modalCompleteBtn>Marcar como completada</button>
+      <button class="btn-action-primary" id="modalCompleteBtn">Marcar como completada</button>
       <button class="btn-action-close" id="modalFooterCloseBtn">Cerrar</button>
     </div>
   </div>
@@ -252,7 +275,7 @@ function openCardModal(c) {
 
   const metaGrid = document.getElementById("modalMetaGrid");
   metaGrid.innerHTML = "";
-  metaGrid.append(el("span", "meta-pill", "Categoria: " + (catConf.label || c.category)));
+  metaGrid.append(el("span", "meta-pill", "Categoría: " + (catConf.label || c.category)));
   if (c.impact) metaGrid.append(el("span", "meta-pill", "Impacto estimado: " + c.impact));
   if (c.week) metaGrid.append(el("span", "meta-pill", "Semana asignada: " + c.week));
   const stLabel = (c.status === "done" ? "Completada" : (c.status === "in_process" ? "En proceso" : "Por hacer"));
