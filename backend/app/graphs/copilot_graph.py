@@ -31,242 +31,48 @@ async def build_system_prompt(session_id: str, case_id: str) -> str:
     session = session_store.get_or_create(session_id, case_id)
     summary = session.summary_executive or _saved_summary(case_id) or f"Caso activo: {case_id}."
 
-    # Variables de inicializacion
-    budget_breakdown_lines = []
-    total_living_expenses = 0.0
-    total_debt_payments = 0.0
-    total_income_mo = 0.0
-    score_published = "N/A"
-    score_band = ""
-    score_msg = ""
-    net_worth_val = 0.0
-    total_liabilities_val = 0.0
-    total_assets_val = 0.0
+    # Datos del hogar: la ficha (data/cases/<id>/profile.json). Se crea una vez desde el caso de Sherpas y la
+    # actualiza el Co-Pilot con `update_profile`; el caso completo ya no se lee en cada mensaje.
+    import profile_store
+    profile = profile_store.load(case_id)
+    if profile is None:
+        try:
+            from backend.app.services.case_repository import case_repo
+            raw_case = await case_repo.get_case(case_id)
+            # Ficha creada a posteriori (plan generado antes de existir la ficha): no se toca la tabla,
+            # que puede tener cambios del usuario; si no coinciden, el prompt lo indica.
+            profile = profile_store.create(case_id, raw_case.financial_health, raw_case.investment_analysis,
+                                           raw_case.persona_markdown, sync=False)
+        except Exception as e:
+            logger.warning(f"No se pudo crear la ficha de datos del caso {case_id}: {e}")
 
-    pillars_lines = []
-    top_moves_lines = []
-    goals_lines = []
-    accounts_lines = []
-    insurance_lines = []
-    chart_expense_categories = []
-    chart_expense_values = []
-    asset_alloc_str = "Distribucion de activos en proceso de sincronizacion."
-    cur_efc = {}
-    tgt_efc = {}
-    portfolio_conc_lines = []
-    transition_alerts_str = ""
-    objective_concerns_str = ""
-    tensions_str = ""
-
-    try:
-        from backend.app.services.case_repository import case_repo
-        raw_case = await case_repo.get_case(case_id)
-        fh = raw_case.financial_health or {}
-        prof = fh.get("profile", {})
-        score_data = fh.get("score", {})
-        score_published = score_data.get("published_score", "N/A")
-        score_band = score_data.get("band", "")
-        score_msg = score_data.get("message", "")
-        km = fh.get("key_metrics", {})
-        net_worth_val = float(km.get("net_worth") or 0.0)
-        total_assets_val = float(km.get("total_assets") or 0.0)
-        total_liabilities_val = float(km.get("total_liabilities") or 0.0)
-
-        # 1. Pilares de Salud Financiera
-        for p in score_data.get("pillars", []):
-            p_name = p.get("pillar", "Pilar")
-            p_pts = p.get("points_shown_in_app", "N/A")
-            p_sc = p.get("score", 0)
-            pillars_lines.append(f"  * {p_name}: {p_pts} (Rendimiento: {p_sc}%)")
-
-        # 2. Top Moves (Acciones prioritarias calculadas por el algoritmo)
-        for tm in score_data.get("top_moves", []):
-            tm_title = tm.get("title", "")
-            tm_action = tm.get("action", "")
-            tm_effort = tm.get("effort", "medio")
-            tm_before = tm.get("score_before", "")
-            tm_after = tm.get("score_after", "")
-            top_moves_lines.append(f"  * {tm_title} [Esfuerzo {tm_effort}]: {tm_action} (Impacto: {tm_before} -> {tm_after} pts)")
-
-        # 3. Metas y Objetivos Vitales
-        for g in fh.get("goals", {}).get("goalsSummary", []):
-            g_val = g.get("value") or f"{g.get('goalType', 'Meta')}: ${g.get('amount', 0):,.0f}"
-            goals_lines.append(f"  * {g_val}")
-
-        # 4. Cuentas y Saldos
-        for a in prof.get("accounts", []):
-            a_name = a.get("name", "Cuenta")
-            a_type = a.get("account_type", "")
-            a_tax = a.get("tax_treatment", "")
-            a_bal = float(a.get("balance", 0))
-            a_contrib = float(a.get("yearly_contribution_total", 0))
-            a_owner = ", ".join(a.get("owner", [])) if isinstance(a.get("owner"), list) else a.get("owner", "")
-            owner_info = f" (Titular: {a_owner})" if a_owner else ""
-            contrib_info = f" | Aporte anual: ${a_contrib:,.0f}" if a_contrib > 0 else ""
-            accounts_lines.append(f"  * {a_name} ({a_type}, {a_tax}){owner_info}: Saldo ${a_bal:,.0f}{contrib_info}")
-
-        # 5. Polizas de Seguro
-        for ins in prof.get("insurance", []):
-            ins_name = ins.get("name", "Seguro")
-            ins_type = ins.get("type", "")
-            ins_cov = ins.get("coverage", "No registrada")
-            ins_cov_str = f"${float(ins_cov):,.0f}" if isinstance(ins_cov, (int, float)) else str(ins_cov)
-            insurance_lines.append(f"  * {ins_name} ({ins_type}): Cobertura {ins_cov_str}")
-
-        # 6. Gastos mensuales
-        expenses_details = []
-        for exp in prof.get("expenses", []):
-            name = exp.get("name", "Gasto")
-            m_amt = float(exp.get("monthly") or (exp.get("yearly", 0) / 12))
-            total_living_expenses += m_amt
-            expenses_details.append(f"  * {name}: ${m_amt:,.0f}/mes (${exp.get('yearly', m_amt*12):,.0f}/ano)")
-            if m_amt > 0:
-                chart_expense_categories.append(name)
-                chart_expense_values.append(round(m_amt))
-
-        # 7. Cuotas de deudas
-        debts_details = []
-        for d in prof.get("liabilities", []):
-            d_name = d.get("name", "Deuda")
-            d_pay = float(d.get("monthly_payment", 0))
-            d_bal = float(d.get("balance", 0))
-            d_rate = float(d.get("interest_rate", 0)) * 100
-            total_debt_payments += d_pay
-            debts_details.append(f"  * {d_name}: cuota ${d_pay:,.0f}/mes (saldo ${d_bal:,.0f}, TAE {d_rate:.1f}%)")
-            if d_pay > 0:
-                chart_expense_categories.append(f"Deuda: {d_name}")
-                chart_expense_values.append(round(d_pay))
-
-        # 8. Ingresos (diferenciando ingresos actuales de ingresos futuros de jubilacion/seguridad social)
-        incomes_details = []
-        future_incomes_details = []
-        current_year = datetime.now().year
-        for inc in prof.get("incomes", []):
-            i_name = inc.get("name", "Salario")
-            i_yr = float(inc.get("yearly", 0))
-            i_mo = i_yr / 12
-            starts = inc.get("starts")
-            if starts and starts > current_year:
-                future_incomes_details.append(f"  * {i_name} (proyectado a partir de {starts}): ${i_yr:,.0f}/ano (${i_mo:,.0f}/mes)")
-            else:
-                total_income_mo += i_mo
-                incomes_details.append(f"  * {i_name}: ${i_mo:,.0f}/mes (${i_yr:,.0f}/ano)")
-
-        total_outgoing = total_living_expenses + total_debt_payments
-        free_cf = total_income_mo - total_outgoing
-
-        budget_breakdown_lines.append(f"Score de Salud Financiera: {score_published}/100 ({score_band}) - {score_msg}")
-        budget_breakdown_lines.append(f"Ingresos mensuales netos actuales ({current_year}): ${total_income_mo:,.0f}/mes")
-        for i_line in incomes_details:
-            budget_breakdown_lines.append(i_line)
-        if future_incomes_details:
-            budget_breakdown_lines.append("\nIngresos futuros proyectados (jubilacion/seguridad social):")
-            for f_line in future_incomes_details:
-                budget_breakdown_lines.append(f_line)
-        budget_breakdown_lines.append(f"\nGastos mensuales de vida y vivienda: ${total_living_expenses:,.0f}/mes")
-        for e_line in expenses_details:
-            budget_breakdown_lines.append(e_line)
-        budget_breakdown_lines.append(f"\nCuotas mensuales de deuda: ${total_debt_payments:,.0f}/mes")
-        for d_line in debts_details:
-            budget_breakdown_lines.append(d_line)
-        budget_breakdown_lines.append(f"\nTOTAL SALIENTE REAL MENSUAL: ${total_outgoing:,.0f}/mes")
-        budget_breakdown_lines.append(f"FLUJO LIBRE REAL MENSUAL: ${free_cf:,.0f}/mes")
-
-        # 9. Inversiones y Asignacion de Activos (investment-analysis)
-        ia = raw_case.investment_analysis or {}
-        ia_summary = ia.get("analysis", {}).get("summary", {}).get("assetAllocation", {})
-        cur_efc = ia_summary.get("currentEFC", {})
-        tgt_efc = ia_summary.get("targetEFC", {})
-        if cur_efc or tgt_efc:
-            asset_alloc_str = (
-                f"- Distribucion Actual: Renta Variable (Acciones) {cur_efc.get('equity', 0)*100:.1f}%, "
-                f"Renta Fija (Bonos) {cur_efc.get('fixedIncome', 0)*100:.1f}%, Efectivo {cur_efc.get('cash', 0)*100:.1f}%\n"
-                f"- Distribucion Objetivo de Sherpas: Renta Variable (Acciones) {tgt_efc.get('equity', 0)*100:.1f}%, "
-                f"Renta Fija (Bonos) {tgt_efc.get('fixedIncome', 0)*100:.1f}%, Efectivo {tgt_efc.get('cash', 0)*100:.1f}%"
-            )
-
-        km_ia = ia.get("key_metrics", {}).get("concentrationAndDiversification", {})
-        totals = km_ia.get("totals", {})
-        if totals:
-            portfolio_conc_lines.append(
-                f"  * Cartera invertible: ${totals.get('investablePortfolioValue', 0):,.0f} "
-                f"distribuida en {totals.get('holdings', 0)} posiciones (Exposicion en renta variable: ${totals.get('equityExposure', 0):,.0f})."
-            )
-        geography = km_ia.get("geographyByRegion", [])
-        if len(geography) > 1:
-            geo_parts = []
-            for row in geography[1:]:
-                if isinstance(row, list) and len(row) >= 2:
-                    try:
-                        geo_parts.append(f"{row[0]}: {float(row[1])*100:.1f}%")
-                    except (ValueError, TypeError):
-                        pass
-            if geo_parts:
-                portfolio_conc_lines.append(f"  * Sesgo geografico: {', '.join(geo_parts[:4])}")
-
-        # 10. Perfil Conductual, Preocupaciones y Tensiones (persona.md)
-        persona_text = raw_case.persona_markdown or ""
-        if persona_text:
-            t_alerts_idx = persona_text.find("## Transition alerts")
-            sub_idx = persona_text.find("## Subjective concerns")
-            obj_idx = persona_text.find("## Objective concerns")
-            tens_idx = persona_text.find("## Tensions")
-            class_idx = persona_text.find("```classification")
-
-            if t_alerts_idx != -1:
-                end_alert = sub_idx if sub_idx != -1 else (obj_idx if obj_idx != -1 else len(persona_text))
-                raw_alert = persona_text[t_alerts_idx:end_alert].replace("## Transition alerts", "").strip()
-                if raw_alert:
-                    transition_alerts_str = raw_alert
-
-            if obj_idx != -1:
-                end_obj = tens_idx if tens_idx != -1 else (class_idx if class_idx != -1 else len(persona_text))
-                raw_obj = persona_text[obj_idx:end_obj].replace("## Objective concerns", "").strip()
-                if raw_obj:
-                    objective_concerns_str = raw_obj
-
-            if tens_idx != -1:
-                end_tens = class_idx if class_idx != -1 else len(persona_text)
-                raw_tens = persona_text[tens_idx:end_tens].replace("## Tensions", "").strip()
-                if raw_tens:
-                    tensions_str = raw_tens
-
-    except Exception as e:
-        logger.warning(f"No se pudo cargar el perfil detallado del caso {case_id}: {e}")
-
-    budget_breakdown_text = "\n".join(budget_breakdown_lines) if budget_breakdown_lines else "Detalle de presupuesto en proceso de sincronizacion."
-    pillars_text = "\n".join(pillars_lines) if pillars_lines else "Pillars no disponibles."
-    top_moves_text = "\n".join(top_moves_lines) if top_moves_lines else "Top moves no disponibles."
-    goals_text = "\n".join(goals_lines) if goals_lines else "Metas no especificadas."
-    accounts_text = "\n".join(accounts_lines) if accounts_lines else "Cuentas en proceso de sincronizacion."
-    insurance_text = "\n".join(insurance_lines) if insurance_lines else "Polizas en proceso de sincronizacion."
-    portfolio_conc_text = "\n".join(portfolio_conc_lines) if portfolio_conc_lines else ""
-
-    # Resumen del dashboard financiero
-    if session.dashboard:
-        db = session.dashboard
-        dashboard_summary = (
-            f"Health Score: {db.health_score}/100 | "
-            f"Patrimonio Neto: ${db.net_worth:,.0f} | "
-            f"Total Activos: ${db.total_assets:,.0f} | "
-            f"Total Deudas: ${db.total_liabilities:,.0f} | "
-            f"Ingreso Mensual: ${db.monthly_income:,.0f} | "
-            f"Gastos Mensuales: ${db.monthly_expenses:,.0f} | "
-            f"Cashflow Libre: ${db.monthly_free_cashflow:,.0f}"
-        )
-    elif total_living_expenses > 0 or total_income_mo > 0:
-        tot_out = total_living_expenses + total_debt_payments
-        dashboard_summary = (
-            f"Health Score: {score_published}/100 | "
-            f"Patrimonio Neto: ${net_worth_val:,.0f} | "
-            f"Total Activos: ${total_assets_val:,.0f} | "
-            f"Total Deudas: ${total_liabilities_val:,.0f} | "
-            f"Ingreso Mensual: ${total_income_mo:,.0f} | "
-            f"Gastos Mensuales: ${tot_out:,.0f} | "
-            f"Cashflow Libre: ${(total_income_mo - tot_out):,.0f}"
-        )
+    if profile:
+        ctx = profile_store.prompt_context(case_id, profile)
     else:
-        dashboard_summary = "Dashboard aun no inicializado."
+        ctx = {"score_published": "N/A", "score_band": "", "score_msg": "", "pillars_text": "Pillars no disponibles.",
+               "top_moves_text": "Top moves no disponibles.", "goals_text": "Metas no especificadas.",
+               "accounts_text": "Cuentas no disponibles.", "insurance_text": "Polizas no disponibles.",
+               "budget_breakdown_text": "Detalle de presupuesto no disponible.",
+               "asset_alloc_str": "Distribucion de activos no disponible.", "portfolio_conc_text": "",
+               "transition_alerts_str": "", "objective_concerns_str": "", "tensions_str": "",
+               "today_text": "Ficha de datos no disponible.", "changes_text": "", "notes_text": "",
+               "chart_expense_categories": [], "chart_expense_values": [], "total_income_mo": 0.0,
+               "total_living_expenses": 0.0, "total_debt_payments": 0.0, "total_outgoing": 0.0, "free_cf": 0.0,
+               "cur_efc": {}}
+    score_published, score_band, score_msg = ctx["score_published"], ctx["score_band"], ctx["score_msg"]
+    pillars_text, top_moves_text, goals_text = ctx["pillars_text"], ctx["top_moves_text"], ctx["goals_text"]
+    accounts_text, insurance_text = ctx["accounts_text"], ctx["insurance_text"]
+    budget_breakdown_text, asset_alloc_str = ctx["budget_breakdown_text"], ctx["asset_alloc_str"]
+    portfolio_conc_text = ctx["portfolio_conc_text"]
+    transition_alerts_str, objective_concerns_str, tensions_str = (
+        ctx["transition_alerts_str"], ctx["objective_concerns_str"], ctx["tensions_str"])
+    chart_expense_categories, chart_expense_values = ctx["chart_expense_categories"], ctx["chart_expense_values"]
+    total_income_mo, total_living_expenses = ctx["total_income_mo"], ctx["total_living_expenses"]
+    total_debt_payments, total_outgoing, free_cf = ctx["total_debt_payments"], ctx["total_outgoing"], ctx["free_cf"]
+    cur_efc = ctx["cur_efc"]
+    today_text = ctx["today_text"]
+    changes_section = f"\nCambios registrados en la ficha (los mas recientes):\n{ctx['changes_text']}" if ctx["changes_text"] else ""
+    notes_section = f"\nNotas del usuario:\n{ctx['notes_text']}" if ctx["notes_text"] else ""
 
     # Resumen de la lista de tareas
     if session.tasks:
@@ -355,8 +161,8 @@ Polizas y Coberturas de Seguro:
 {objective_concerns_section}
 {tensions_section}
 
-=== ESTADO ACTUAL DEL DASHBOARD FINANCIERO ===
-{dashboard_summary}
+=== CIFRAS DE HOY (FICHA Y TABLA DEL MES EN CURSO) ===
+{today_text}{changes_section}{notes_section}
 
 === LISTA DE TAREAS ACTUAL ===
 {tasks_summary}
@@ -394,6 +200,7 @@ Tienes herramientas nativas de hoja de calculo (tipo Excel) totalmente abiertas 
 18. `inspect_case_data`: Consulta detalles profundos del caso en el servidor MCP oficial de Sherpas (part: 'financial-health', 'investment-analysis', 'persona').
 19. `manage_task`: Gestiona la lista de tareas pendientes (action: 'add', 'complete', 'delete').
 20. `update_dashboard_metric`: Actualiza metricas globales del dashboard.
+21. `update_profile`: Actualiza la ficha de datos del hogar (deudas, ingresos, gastos recurrentes, cuentas, bienes, seguros, impuestos, metas y notas) y pone al dia la tabla del mes en curso y su proyeccion. Las cifras de este prompt salen de esa ficha.
 
 DIRECTRICES OPERATIVAS:
 - HERRAMIENTAS ABIERTAS Y CREATIVIDAD ESTILO EXCEL (NADA HARDCODEADO):
@@ -408,10 +215,16 @@ DIRECTRICES OPERATIVAS:
       Llama a `set_cell` o `set_cell_formula` (o `set_cells` para multiples celdas).
     - Nueva partida o meta de ahorro:
       Llama a `add_column(name='Ahorro_Casa', formula='Ingresos * 0.15')` para crear y calcular la columna dinamicamente.
-    - Imprevisto o gasto extraordinario:
-      Llama a `set_cell` (o `set_cell_formula`) para reflejarlo en la tabla y a `manage_box` para anadir la tarjeta explicativa.
+    - Imprevisto o gasto extraordinario ya ocurrido:
+      Llama a `update_profile(kind='account', ...)` para bajar el saldo de la cuenta de la que sale (la tabla se actualiza sola) y a `manage_box` para anadir la tarjeta explicativa.
   * Si el usuario te indica 'no lo veo en el dashboard', 'no ha cambiado' o te insiste con una correccion:
     NUNCA respondas con preguntas evasivas ni digas que ya lo hiciste si no llamaste a las herramientas. DEBES EJECUTAR INMEDIATAMENTE `apply_column_formula`, `project_growth` o `set_cells` y `update_dashboard_metric` en esta misma llamada para que los datos queden grabados y sincronizados en vivo.
+- FICHA DE DATOS SIEMPRE AL DIA (MUY IMPORTANTE):
+  * Las cifras de "DESGLOSE", "CUENTAS" y "CIFRAS DE HOY" vienen de la ficha del hogar y estan al dia. Usalas siempre en vez de cifras antiguas de la conversacion.
+  * Cuando el usuario te cuente un CAMBIO REAL en su situacion (ha pagado o contratado una deuda, le han subido o bajado el sueldo, tiene un gasto recurrente nuevo o uno menos, ha movido dinero entre cuentas, ha cobrado o gastado una cantidad puntual, ha contratado un seguro), INVOCA `update_profile` en esta misma respuesta. Esa herramienta ya actualiza la tabla (fila del mes en curso y proyeccion): para esos cambios NO uses `set_cell` sobre Ingresos, Gastos_Fijos, Deuda_Pendiente o Patrimonio.
+  * Si el dinero sale de una cuenta o entra en ella (pagar una deuda con ahorros, un gasto puntual, un cobro extra), actualiza tambien el saldo de esa cuenta con `update_profile(kind='account', ...)` para que el patrimonio cuadre.
+  * Las herramientas de la tabla (`set_cell`, formulas, columnas, `project_growth`) siguen siendo para escenarios y proyecciones ("que pasaria si..."), no para cambios reales de hoy.
+  * El score es el del informe de Sherpas y no se recalcula solo: si cambian los datos, dilo asi ("tu score del informe era X; con este cambio deberia mejorar en ...") sin inventar un score nuevo exacto.
 - IDENTIDAD INSTITUCIONAL (ERES EL ASESOR FINANCIERO DE SHERPAS WEALTH):
   * ERES el Asesor Financiero Personal del cliente dentro de la firma Sherpas Wealth. Tienes todo su expediente patrimonial delante.
   * NUNCA, bajo ningun concepto, le digas al cliente que 'consulte con un asesor financiero', 'hable con un planificador' o 'busque a un profesional externo'. TU Y SHERPAS WEALTH SOIS SU ASESORIA FINANCIERA!
@@ -446,7 +259,8 @@ DIRECTRICES OPERATIVAS:
   * Utiliza los datos exactos de las secciones "OBJETIVOS FINANCIEROS Y METAS VITALES", "ALERTAS DE TRANSICION" y "TENSIONES ESTRATEGICAS".
   * Explica las tensiones de forma clara y constructiva (ej: para Michael Carter, como el pago inicial de $113,300 para la casa en 2027 compite directamente con el interes compuesto de la jubilacion y absorbe la liquidez disponible).
 - CONSULTAS SOBRE CAMBIOS SALARIALES, CRECIMIENTO O PROYECCIONES MES A MES:
-  * Si el usuario informa de un aumento salarial o proyeccion (ej: 'ganar un 10% cada mes durante los proximos anos', 'aumento de ingresos', 'es compuesto', 'aumenta un X% cada mes'):
+  * Si el usuario informa de un sueldo nuevo ya decidido (ej: 'me han subido el sueldo a 160.000'), usa `update_profile(kind='income', ...)`: cambia la ficha y la tabla desde este mes.
+  * Si el usuario plantea un crecimiento o una proyeccion (ej: 'ganar un 10% cada mes durante los proximos anos', 'es compuesto', 'aumenta un X% cada mes'):
     a) INVOCA DIRECTAMENTE la herramienta `project_growth` pasando column='Ingresos', rate_pct=porcentaje, compounding=True (o False si es lineal).
     b) En tu respuesta, explica de forma accesible y motivadora para gente no experta como esta progresion compuesta incrementa su flujo de caja libre cada mes, alivia la presion de sus metas vitales y acelera la creacion de patrimonio.
 - NOTIFICACIONES DE TAREAS Y CUMPLIMIENTO EN EL TABLERO KANBAN:
@@ -465,8 +279,8 @@ DIRECTRICES OPERATIVAS:
      - description: Explicacion clara de la contingencia y de como se absorbe de forma sencilla.
      - impact: Impacto cuantificado si aplica (ej: '-$2,000 en liquidez').
      - steps: Lista Python de pasos a seguir (ej: ['Notificar al perito del seguro', 'Reasignar excedente de ahorro de este mes']). NUNCA unas los pasos con barras '|'.
-  b) Usa `set_cell` o `modify_table_cell` para ajustar los gastos o ahorro del mes actual en la tabla.
-  c) Si procede, usa `update_dashboard_metric` o `manage_task`.
+  b) Usa `update_profile(kind='account', ...)` para bajar el saldo de la cuenta de la que sale el dinero (asi el patrimonio de hoy y la proyeccion de la tabla lo reflejan). Si es un gasto que se va a repetir cada mes, usa `update_profile(kind='expense', ...)`.
+  c) Si procede, usa `manage_task`.
 - Despues de ejecutar las herramientas, en tu mensaje confirma de forma calida lo que acabas de actualizar en la interfaz, interesate por su bienestar y demuestra como el plan maestro absorbe el bache sin desviarse de los objetivos patrimoniales a largo plazo.
 - IDIOMA Y ORTOGRAFIA: Responde siempre en castellano CON acentos y ortografia correcta en todos tus mensajes al cliente."""
     return prompt

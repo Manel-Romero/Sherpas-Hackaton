@@ -4,6 +4,7 @@ Cada usuario es una carpeta data/cases/<id>/ con sus ficheros:
     table.json, kanban.json, boxes.json   -> datos del plan (los usan table_store / kanban_store)
     chat.json                             -> conversación guardada
     summary.json                          -> lo que generó "Cargar plan": resumen ejecutivo, titular y primera acción
+    profile.json                          -> ficha de datos del hogar (profile_store), que el Co-Pilot mantiene al día
     meta.json                             -> {display_name, base_case, copied_from, tutorial_done}
 
 Los 4 casos de Sherpas (carpeta cases/) son usuarios de serie. Un usuario nuevo se crea
@@ -24,7 +25,8 @@ import project_paths
 ROOT = project_paths.ROOT
 CASES_DIR = project_paths.CASES_DIR
 DATA_DIR = project_paths.DATA_CASES_DIR      # el mismo sitio que usan table_store y kanban_store
-DATA_FILES = ("table.json", "kanban.json", "boxes.json", "summary.json")
+DATA_FILES = ("table.json", "kanban.json", "boxes.json", "summary.json", "profile.json")
+PLAN_FILES = ("table.json", "kanban.json", "boxes.json", "profile.json")   # lo que "Cargar plan" sobrescribe
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
@@ -121,9 +123,9 @@ def save_plan_summary(user_id: str, init_response: dict) -> None:
 
 
 def backup_plan_files(user_id: str) -> Path | None:
-    """Copia table/kanban/boxes actuales a data/cases/<id>/backup-<fecha>/ antes de que "Cargar plan"
+    """Copia table/kanban/boxes/profile actuales a data/cases/<id>/backup-<fecha>/ antes de que "Cargar plan"
     los sobrescriba. Devuelve la carpeta, o None si no había nada que guardar."""
-    files = [f for f in (_dir(user_id) / n for n in DATA_FILES[:3]) if f.exists()]
+    files = [f for f in (_dir(user_id) / n for n in PLAN_FILES) if f.exists()]
     if not files:
         return None
     dest = _dir(user_id) / time.strftime("backup-%Y%m%d-%H%M%S")

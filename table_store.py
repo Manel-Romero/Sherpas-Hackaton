@@ -96,11 +96,17 @@ def clean(data: dict) -> dict:
 
 
 def recalculate_projections(data: dict) -> dict:
-    """Recalcula dinamicamente Ahorro_Libre y Patrimonio a partir de Ingresos y Gastos_Fijos."""
+    """Recalcula dinamicamente Ahorro_Libre y Patrimonio a partir de Ingresos y Gastos_Fijos.
+
+    Patrimonio: los meses hasta el mes en curso (incluido) son datos y se respetan; los siguientes son la
+    proyeccion y se calculan sumando el ahorro de cada mes al patrimonio de hoy. Si la tabla no tiene el mes
+    en curso, se proyecta desde la primera fila (comportamiento anterior)."""
     columns = list(data.get("columns", []))
     rows = data.get("rows", [])
     if not rows:
         return data
+    current = datetime.now().strftime("%Y-%m")
+    anchor = next((i for i, r in enumerate(rows) if r.get("date") == current), 0)
 
     has_inc = "Ingresos" in columns
     has_exp = "Gastos_Fijos" in columns
@@ -119,7 +125,7 @@ def recalculate_projections(data: dict) -> dict:
             r["Ahorro_Libre"] = free_savings
 
             if has_nw:
-                if idx == 0:
+                if idx <= anchor:
                     base_nw = to_number(r.get("Patrimonio", base_nw))
                 else:
                     base_nw = round(base_nw + max(0.0, free_savings), 2)

@@ -692,6 +692,40 @@ def project_growth(
     except Exception as e:
         return f"Error aplicando proyeccion de crecimiento en tabla: {str(e)}"
 
+@tool
+def update_profile(
+    kind: Literal["debt", "income", "expense", "account", "asset", "insurance", "taxes", "goal", "note"],
+    name: str = "",
+    action: Literal["set", "remove"] = "set",
+    balance: Optional[float] = None,
+    monthly_payment: Optional[float] = None,
+    interest_rate_pct: Optional[float] = None,
+    yearly: Optional[float] = None,
+    monthly: Optional[float] = None,
+    value: Optional[float] = None,
+    coverage: Optional[float] = None,
+    text: str = "",
+    config: RunnableConfig = None
+) -> str:
+    """Actualiza la ficha de datos del hogar cuando el usuario cuenta un cambio real en su situacion, y pone
+    al dia la tabla (fila del mes en curso y proyeccion) para que ficha y tabla coincidan.
+    - debt: name + balance (saldo nuevo; 0 = pagada, su cuota pasa a 0), monthly_payment, interest_rate_pct (ej. 18).
+    - income: name + yearly (bruto anual) o monthly. - expense: name + monthly (gasto recurrente mensual).
+    - account: name + balance (saldo nuevo de una cuenta). - asset: name + value (casa, coche...).
+    - insurance: name + coverage. - taxes: yearly (impuestos anuales).
+    - goal / note: text (meta nueva o dato a recordar). action='remove' borra la partida o el texto.
+    Ej.: pagar 6.800 de la tarjeta con la cuenta corriente = dos llamadas: debt (saldo nuevo de la tarjeta) y
+    account (saldo nuevo de la cuenta). Usa los nombres tal como aparecen en la ficha."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        import profile_store
+        return profile_store.update(case_id, kind, name, action, balance=balance, monthly_payment=monthly_payment,
+                                    interest_rate_pct=interest_rate_pct, yearly=yearly, monthly=monthly,
+                                    value=value, coverage=coverage, text=text)
+    except Exception as e:
+        return f"Error actualizando la ficha: {str(e)}"
+
 ALL_COPILOT_TOOLS = [
     manage_task,
     update_dashboard_metric,
@@ -715,4 +749,5 @@ ALL_COPILOT_TOOLS = [
     move_kanban_card,
     delete_kanban_card,
     project_growth,
+    update_profile,
 ]

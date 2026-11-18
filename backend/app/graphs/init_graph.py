@@ -232,6 +232,16 @@ def persist_session_node(state: CaseInitState) -> CaseInitState:
                 net_worth=d.net_worth
             )
 
+        # 1b. Ficha de datos clave (data/cases/<id>/profile.json) con las cifras exactas del caso, y la
+        #     tabla puesta en linea con ella (sustituye las estimaciones del modelo por los datos del informe)
+        raw = state.get("raw_case")
+        if raw is not None:
+            try:
+                import profile_store
+                profile_store.create(case_id, raw.financial_health, raw.investment_analysis, raw.persona_markdown)
+            except Exception as e_pf:
+                logger.warning(f"No se pudo crear la ficha de datos de {case_id}: {e_pf}")
+
         # 2. Inicializar las tarjetas del plan con esquema nativo estructurado
         if state.get("master_plan"):
             mp = state["master_plan"]
