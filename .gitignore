@@ -11,6 +11,7 @@ env/
 dist/
 build/
 .next/
+.vite/
 
 # Caches and bytecode
 __pycache__/
