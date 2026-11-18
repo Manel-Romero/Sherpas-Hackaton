@@ -315,11 +315,11 @@ def suggestions(user_id: str) -> list[tuple[str, str]]:
                     f"Explícame con detalle «{first_task}»: por qué es lo primero y qué pasos concretos tengo que dar hoy."))
     elif p["moves"]:
         m = p["moves"][0]
-        out.append(("Mi primera palanca",
+        out.append(("Mi primer paso",
                     f"Explícame con detalle cómo «{_move(m)}» mejora mi score y qué pasos concretos tengo que dar. "
                     "Si procede, añádelo a mis tareas."))
     if p["weakest"]:
-        out.append(("Mejorar {_pillar(p['weakest'])}",
+        out.append((f"Mi punto más débil: {_pillar(p['weakest'])}",
                     f"Mi área más floja es {_pillar(p['weakest'])}. ¿Qué haría yo primero y qué cambiarías en mi tabla?"))
     out.append(("Me dan un bonus de 15.000 $",
                 "Voy a recibir un bonus de 15.000 $. ¿Qué hago con él? Aplica los cambios que recomiendes en mi tabla."))
