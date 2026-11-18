@@ -3,6 +3,7 @@
 Cada usuario es una carpeta data/cases/<id>/ con sus ficheros:
     table.json, kanban.json, boxes.json   -> datos del plan (los usan table_store / kanban_store)
     chat.json                             -> conversación guardada
+    summary.json                          -> lo que generó "🚀 Cargar plan": resumen ejecutivo, titular y primera acción
     meta.json                             -> {display_name, base_case, copied_from, tutorial_done}
 
 Los 4 casos de Sherpas (carpeta cases/) son usuarios de serie. Un usuario nuevo se crea
@@ -22,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CASES_DIR = ROOT / "cases"
 DATA_DIR = ROOT / "data" / "cases"          # el mismo sitio que usan table_store y kanban_store
-DATA_FILES = ("table.json", "kanban.json", "boxes.json")
+DATA_FILES = ("table.json", "kanban.json", "boxes.json", "summary.json")
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
@@ -99,6 +100,44 @@ def tutorial_done(user_id: str) -> bool:
 
 def mark_tutorial_done(user_id: str) -> None:
     write_meta(user_id, tutorial_done=True)
+
+
+# ---------------------------------------------------------------- resumen del plan
+def save_plan_summary(user_id: str, init_response: dict) -> None:
+    """Guarda lo que devuelve /api/cases/<id>/init y que el backend solo conserva en memoria:
+    el resumen ejecutivo (hecho a partir de persona.md y del informe), el titular y la primera acción."""
+    plan = init_response.get("master_plan") or {}
+    data = {
+        "executive_summary": init_response.get("executive_summary") or "",
+        "headline": plan.get("headline") or init_response.get("headline") or "",
+        "immediate_action": plan.get("immediate_action") or {},
+        "tasks": [{"title": t.get("title", ""), "week": t.get("week"),
+                   "impact": (t.get("impact") or {}).get("value", "")}
+                  for t in plan.get("tasks", []) if isinstance(t, dict)],
+        "saved_at": int(time.time()),
+    }
+    _atomic_write(_dir(user_id) / "summary.json", json.dumps(data, indent=2, ensure_ascii=False))
+
+
+def backup_plan_files(user_id: str) -> Path | None:
+    """Copia table/kanban/boxes actuales a data/cases/<id>/backup-<fecha>/ antes de que "Cargar plan"
+    los sobrescriba. Devuelve la carpeta, o None si no había nada que guardar."""
+    files = [f for f in (_dir(user_id) / n for n in DATA_FILES[:3]) if f.exists()]
+    if not files:
+        return None
+    dest = _dir(user_id) / time.strftime("backup-%Y%m%d-%H%M%S")
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in files:
+        shutil.copy2(f, dest / f.name)
+    return dest
+
+
+def load_plan_summary(user_id: str) -> dict | None:
+    try:
+        data = json.loads((_dir(user_id) / "summary.json").read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return data if data.get("executive_summary") or data.get("headline") else None
 
 
 # ---------------------------------------------------------------- usuarios

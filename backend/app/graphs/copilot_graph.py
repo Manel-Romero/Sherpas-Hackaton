@@ -1,5 +1,6 @@
 import logging
 import json
+from pathlib import Path
 from datetime import datetime
 from typing import Any, Optional
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
@@ -16,10 +17,18 @@ from backend.app.tools.copilot_tools import ALL_COPILOT_TOOLS
 
 logger = logging.getLogger(__name__)
 
+def _saved_summary(case_id: str) -> str:
+    # Resumen ejecutivo guardado por el frontend (data/cases/<id>/summary.json). Sobrevive a reinicios del backend.
+    try:
+        f = Path(__file__).resolve().parents[3] / "data" / "cases" / case_id / "summary.json"
+        return (json.loads(f.read_text(encoding="utf-8")).get("executive_summary") or "").strip()
+    except Exception:
+        return ""
+
 async def build_system_prompt(session_id: str, case_id: str) -> str:
     # Construye el prompt de sistema dinamicamente con el estado actual y datos reales del caso desde MCP
     session = session_store.get_or_create(session_id, case_id)
-    summary = session.summary_executive or f"Caso activo: {case_id}."
+    summary = session.summary_executive or _saved_summary(case_id) or f"Caso activo: {case_id}."
 
     # Variables de inicializacion
     budget_breakdown_lines = []

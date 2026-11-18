@@ -9,7 +9,8 @@ import workspaces
 
 # Claves de sesión que dependen del usuario activo: se borran al entrar o salir.
 _PER_USER_KEYS = ("table_version", "df", "kanban_version", "last_nonce", "ask_talk_agent",
-                  "is_streaming", "notify_changes", "notify_msg", "_chat_saved", "show_tutorial")
+                  "is_streaming", "notify_changes", "notify_msg", "_chat_saved", "show_tutorial",
+                  "auto_init_tried", "tut_step", "tts_open", "mic_gen", "_mic_hash")
 
 
 def login(user_id: str) -> None:

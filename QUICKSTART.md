@@ -7,7 +7,9 @@ Instrucciones directas para levantar y probar la aplicación en local.
 ## 1. Requisitos Previos
 
 - **Python 3.11+**
-- Archivo `.env` en la raíz con las credenciales configuradas (ver `.env.example`).
+- Archivo `.env` en la raíz con las credenciales: `cp .env.example .env` y rellena `TEAM_KEY` (clave del equipo
+  para los modelos y la voz) y `MCP_TOKEN` (token del servidor de casos; **caduca cada 72 h**, hay que renovarlo
+  en https://mcp-hackathon.sherpaswealth.com/personal-token).
 
 ---
 
@@ -80,3 +82,17 @@ pytest
 - Los datos de cada usuario viven en `data/cases/<usuario>/` (tabla, tareas, chat y `meta.json`).
   Un usuario copiado apunta con `base_case` a su caso de Sherpas, y el backend lo usa para leer su informe.
 - La conversación se guarda: al volver otro día sigue ahí. **🚀 Cargar plan** pide al backend que genere el plan.
+
+## Plan, tutorial y voz
+
+- **Primera entrada de un usuario**: si no tiene `summary.json`, la app ejecuta **Cargar plan** sola (~1 min, llama al modelo)
+  y guarda en `data/cases/<usuario>/` la tabla, las tareas, las cajas y el **resumen ejecutivo** (`summary.json`),
+  hecho a partir de `persona.md` y del informe. Si había datos, antes se copian a `backup-<fecha>/`.
+  No se repite: al volver, todo se lee de `data/`. El botón **🚀 Cargar plan** lo regenera a mano.
+- El **chat** usa ese `summary.json` como contexto (aunque reinicies el backend). Un usuario copiado hereda el resumen.
+- El **tutorial** se construye con ese resumen, el plan generado y la persona (D5 cómo decide, D6 qué le mueve).
+  Mientras el plan no exista usa una versión mínima con el score y las cifras del informe.
+- **Voz** (ElevenLabs por el proxy, mismo `TEAM_KEY`): 🔊 en cada paso del tutorial y en cada respuesta del chat;
+  🎤 en la pestaña Chat para preguntar hablando (transcripción `scribe-v2`). El audio solo se genera al pulsar y se guarda
+  en `data/audio_cache/` (la segunda vez es gratis). Presupuesto compartido de ElevenLabs: ~1,40 $ por equipo
+  (~35.000 caracteres): un paso del tutorial cuesta ~0,02-0,05 $.

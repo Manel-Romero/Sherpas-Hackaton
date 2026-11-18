@@ -15,6 +15,8 @@ import streamlit as st
 from compat import stretch
 
 import dashboard_ui
+import personalize
+import voice_ui
 import workspaces
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
@@ -44,6 +46,16 @@ def persist() -> None:
         ss._chat_saved = (user, len(msgs))
 
 
+def _suggestions() -> list[tuple[str, str]]:
+    """Ideas del estado vacío: las de este usuario (con su score, su primera acción...) o las genéricas."""
+    user = st.session_state.get("user")
+    try:
+        mine = personalize.suggestions(user) if user else []
+    except Exception:
+        mine = []
+    return mine or SUGGESTIONS
+
+
 def _empty_state():
     """Título y sugerencias (usan los estilos .empty-title / .empty-sub / .empty-marker)."""
     box = st.empty()
@@ -55,7 +67,7 @@ def _empty_state():
         with st.container():
             st.markdown('<span class="marker empty-marker"></span>', unsafe_allow_html=True)
             cols = st.columns(2)
-            for i, (label, text) in enumerate(SUGGESTIONS):
+            for i, (label, text) in enumerate(_suggestions()):
                 if cols[i % 2].button(label, key=f"chip_{i}", **stretch(st.button)):
                     chosen = text
     return box, chosen
@@ -66,16 +78,19 @@ def render(prompt: str | None) -> None:
     ss.setdefault("messages", [])
     st.markdown('<span class="marker chat-marker"></span>', unsafe_allow_html=True)
 
+    spoken = voice_ui.mic_prompt()                   # 🎤 pregunta dicha en voz alta (ya transcrita)
     chip = None
     if not ss.messages:
         box, chip = _empty_state()
-    for m in ss.messages:
+    for i, m in enumerate(ss.messages):
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
             if m.get("chart"):
                 dashboard_ui.render_chart(m["chart"])
+            if m["role"] == "assistant":
+                voice_ui.speak_button(m["content"], key=f"msg{i}")
 
-    active = prompt or chip
+    active = prompt or chip or spoken
     if not active:
         return
     if not ss.messages:

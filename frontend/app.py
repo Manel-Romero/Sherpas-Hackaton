@@ -68,9 +68,15 @@ if ss.pop("notify_changes", False):
     st.toast(f"Cambios aplicados: {ss.get('notify_msg', '')}", icon="✅")
 
 
-def initialize_plan() -> None:
-    """Pide al backend que analice el caso y genere plan, tabla y tareas."""
-    with st.spinner("El Co-Pilot está analizando tu caso y preparando el plan… (puede tardar un minuto)"):
+def initialize_plan(auto: bool = False) -> None:
+    """Pide al backend que analice el caso y genere plan, tabla y tareas. Guarda también el resumen.
+    `auto=True`: es la carga automática de la primera entrada (si falla, no se reintenta en esta sesión)."""
+    if auto:
+        ss.auto_init_tried = True
+    msg = ("Preparando tu plan a medida: el Co-Pilot lee tu informe y tu perfil… (puede tardar un minuto)"
+           if auto else "El Co-Pilot está analizando tu caso y preparando el plan… (puede tardar un minuto)")
+    with st.spinner(msg):
+        workspaces.backup_plan_files(ss.user)       # init sobrescribe tabla y tareas: guardamos copia
         try:
             r = httpx.post(f"{API_BASE_URL}/api/cases/{ss.case_id}/init",
                            json={"session_id": ss.session_id}, timeout=180)
@@ -84,13 +90,15 @@ def initialize_plan() -> None:
     if r.status_code != 200:
         st.error(f"No se pudo cargar el plan: {r.text[:300]}")
         return
+    workspaces.save_plan_summary(ss.user, r.json())     # el backend solo lo guarda en memoria: lo guardamos en data/
     plan = r.json().get("master_plan", {})
     action = plan.get("immediate_action", {}).get("title", "")
-    ss.messages = [{
-        "role": "assistant",
-        "content": f"¡Hola! He analizado tu caso. {plan.get('headline', '')}\n\n"
-                   f"Tu primera acción, para hoy: **{action}**. ¿Quieres que te la explique?",
-    }]
+    if not (auto and ss.get("messages")):               # la carga automática no borra una conversación previa
+        ss.messages = [{
+            "role": "assistant",
+            "content": f"¡Hola! He analizado tu caso. {plan.get('headline', '')}\n\n"
+                       f"Tu primera acción, para hoy: **{action}**. ¿Quieres que te la explique?",
+        }]
     ss.session_id = f"sess_{ss.case_id}_{int(time.time())}"
     ss.pop("table_version", None)
     chat_ui.persist()
@@ -103,6 +111,8 @@ if want_tutorial:
     tutorial.request(ss.user)
 if want_plan:
     initialize_plan()
+elif not ss.get("auto_init_tried") and workspaces.load_plan_summary(ss.user) is None:
+    initialize_plan(auto=True)      # primera entrada: genera el plan y el resumen antes del tutorial
 tutorial.maybe_show(ss.user)
 
 # ---- Barra de chat (se ancla abajo; el CSS solo la muestra en la pestaña Chat) ----
