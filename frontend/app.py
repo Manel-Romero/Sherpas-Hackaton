@@ -11,6 +11,7 @@ Módulos de esta carpeta:
     chat_ui.py        chat con el Co-Pilot (SSE)
 Del directorio raíz: table_store/table_ui (tabla), kanban_store/kanban_ui (tablero).
 """
+import inspect
 import os
 import sys
 import time
@@ -122,10 +123,20 @@ elif not ss.get("auto_init_tried") and workspaces.load_plan_summary(ss.user) is 
 tutorial.maybe_show(ss.user)
 
 # ---- Barra de chat (se ancla abajo; el CSS solo la muestra en la pestaña Chat) ----
-prompt = chat_ui.input_box()
+# La barra del chat solo existe en la pestaña Chat. Con ella en la página, Streamlit la pone en modo "chat"
+# (pegada al final) y el plan y los datos se abrían desplazados hasta abajo del todo. Para saber qué pestaña
+# está abierta, las pestañas avisan al servidor al cambiar (Streamlit >= 1.55; con versiones anteriores la
+# barra se queda siempre, como antes).
+TABS = ["Plan de acción", "Proyección y datos", "Chat Co-Pilot"]
+_STATEFUL_TABS = "on_change" in inspect.signature(st.tabs).parameters
+on_chat = (ss.get("main_tab") == TABS[2]) if _STATEFUL_TABS else True
+prompt = chat_ui.input_box() if on_chat else None
 
 # ---- Las tres pestañas ----
-tab_plan, tab_data, tab_chat = st.tabs(["Plan de acción", "Proyección y datos", "Chat Co-Pilot"])
+if _STATEFUL_TABS:
+    tab_plan, tab_data, tab_chat = st.tabs(TABS, key="main_tab", on_change="rerun")
+else:
+    tab_plan, tab_data, tab_chat = st.tabs(TABS)
 
 with tab_plan:
     dashboard_ui.render_plan_progress()
