@@ -5,9 +5,9 @@ from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
 
-def get_llm(model_name: str, temperature: float = 0.2, streaming: bool = False) -> ChatOpenAI:
+def get_llm(model_name: str, temperature: float = 0.2, streaming: bool = False, timeout: float = 60.0) -> ChatOpenAI:
     # Inicializar cliente LLM con cliente HTTP asincrono limpio para evitar conflictos de bucle de eventos
-    async_client = httpx.AsyncClient(base_url=settings.LLM_PROXY_URL, timeout=60.0)
+    async_client = httpx.AsyncClient(base_url=settings.LLM_PROXY_URL, timeout=timeout)
     return ChatOpenAI(
         model=model_name,
         base_url=settings.LLM_PROXY_URL,
@@ -19,7 +19,9 @@ def get_llm(model_name: str, temperature: float = 0.2, streaming: bool = False) 
 
 def get_reasoning_llm() -> ChatOpenAI:
     # Modelo para analisis maestro, sintesis de plan y resumen ejecutivo
-    return get_llm(settings.REASONING_MODEL, temperature=0.2)
+    # El plan completo (resumen + tareas, con razonamiento) puede tardar más de 60 s: con un límite corto
+    # la petición falla y el cliente la reintenta, pagando dos veces. Debe ser menor que el timeout del frontend (180 s).
+    return get_llm(settings.REASONING_MODEL, temperature=0.2, timeout=170.0)
 
 def get_chat_llm(streaming: bool = True) -> ChatOpenAI:
     # Modelo para el bucle conversacional del Co-Pilot
