@@ -414,4 +414,32 @@ def test_structured_kanban_cards(tmp_path, monkeypatch):
     assert c_tool["impact"] == "Escudo $1M"
 
 
+def test_simulate_scenario_tool():
+    from backend.app.tools.copilot_tools import simulate_scenario
+    config = RunnableConfig(configurable={"session_id": "s_sim_tool", "case_id": "michael-carter"})
+    session = session_store.get_or_create("s_sim_tool", "michael-carter")
+
+    res = simulate_scenario.invoke({
+        "scenario_name": "Shock de $2,000 en taller",
+        "emergency_expense": 2000.0,
+        "horizon_months": 12
+    }, config=config)
+
+    assert "completada con exito" in res
+    assert "Score proyectado" in res
+    assert len(session.pending_charts) > 0
+    assert "Simulacion" in session.pending_charts[-1]["title"]
+
+
+@pytest.mark.asyncio
+async def test_generate_advisor_report_tool():
+    from backend.app.tools.copilot_tools import generate_advisor_report_tool
+    config = RunnableConfig(configurable={"session_id": "s_rep_tool", "case_id": "michael-carter"})
+
+    res = await generate_advisor_report_tool.ainvoke({}, config=config)
+    assert "Ficha de acompanamiento generada" in res
+    assert "Preguntas clave preparadas" in res
+
+
+
 

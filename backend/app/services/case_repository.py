@@ -35,6 +35,8 @@ class CaseRepository:
     def __init__(self, mcp_url: Optional[str] = None, mcp_token: Optional[str] = None):
         self.mcp_url = mcp_url or settings.MCP_URL
         self.mcp_token = mcp_token or settings.MCP_TOKEN
+        self._cases_cache: dict[str, CaseFull] = {}
+        self._list_cache: list[CaseSummary] = []
 
     async def _call_mcp_tool(self, tool_name: str, arguments: dict) -> Any:
         # Ejecuta una herramienta directamente contra el servidor MCP via StreamableHTTP
@@ -99,7 +101,9 @@ class CaseRepository:
         return _parse_mcp_content(raw_text)
 
     async def list_cases(self) -> list[CaseSummary]:
-        # Consulta la lista de casos disponibles directamente al servidor MCP
+        # Consulta la lista de casos disponibles directamente al servidor MCP con cache en memoria
+        if self._list_cache:
+            return self._list_cache
         data = await self._call_mcp_tool("list_cases", {})
         summaries: list[CaseSummary] = []
 
@@ -135,10 +139,13 @@ class CaseRepository:
                 )
             )
 
+        self._list_cache = summaries
         return summaries
 
     async def get_case(self, case_id: str) -> CaseFull:
-        # Obtiene las tres partes completas en una unica sesion MCP concurrente con asyncio.gather
+        # Obtiene las tres partes completas en una unica sesion MCP concurrente con asyncio.gather y cache en memoria
+        if case_id in self._cases_cache:
+            return self._cases_cache[case_id]
         url = settings.MCP_URL
         token = settings.MCP_TOKEN
 
@@ -224,13 +231,15 @@ class CaseRepository:
             short_description=score_info.get("message", "")
         )
 
-        return CaseFull(
+        cf = CaseFull(
             id=case_id,
             summary=summary,
             financial_health=fh_data if isinstance(fh_data, dict) else {},
             investment_analysis=ia_data if isinstance(ia_data, dict) else {},
             persona_markdown=persona_text
         )
+        self._cases_cache[case_id] = cf
+        return cf
 
     async def get_case_section(self, case_id: str, part: str, section: Optional[str] = None) -> Any:
         # Consulta una seccion especifica de un caso mediante el servidor MCP

@@ -258,17 +258,49 @@ async def build_system_prompt(session_id: str, case_id: str) -> str:
     else:
         dashboard_summary = "Dashboard aun no inicializado."
 
-    # Resumen de la lista de tareas
+    # Resumen y sincronizacion del tablero Kanban y lista de tareas
+    try:
+        import kanban_store as ks
+        kb_data = ks.load(case_id=case_id)
+        kb_cards = kb_data.get("cards", [])
+        
+        # Sincronizar session.tasks con las tarjetas de kanban_store para evitar desalineacion
+        if not session.tasks and kb_cards:
+            for c in kb_cards:
+                st = c.get("status", "todo")
+                session.tasks.append(
+                    TaskItem(
+                        id=c.get("id", ""),
+                        title=c.get("title", ""),
+                        short_description=c.get("short_description", ""),
+                        detailed_description=c.get("detailed_description", ""),
+                        description=c.get("content", ""),
+                        week=c.get("week") or 1,
+                        category=c.get("category", "general"),
+                        status="completed" if st == "done" else ("in_progress" if st == "in_process" else "pending"),
+                        impact=TaskImpact(metric="Impacto", value=c.get("impact", "")) if c.get("impact") else None,
+                        steps=c.get("steps", [])
+                    )
+                )
+
+        card_summaries = [
+            f"  * [Columna '{c.get('status')}'] ID: '{c.get('id')}' | Titulo: '{c.get('title')}' | Categoria: {c.get('category')} | Impacto: {c.get('impact')}"
+            for c in kb_cards
+        ]
+        kanban_info_str = "\n".join(card_summaries) if card_summaries else "Sin tarjetas en el tablero."
+    except Exception as e:
+        kanban_info_str = f"Error leyendo kanban: {e}"
+
     if session.tasks:
         tasks_lines = [
-            f"- [{t.status.upper()}] {t.id}: {t.title} (Semana {t.week}) -> Impacto: {t.impact.value if t.impact else 'N/A'}"
+            f"- [{t.status.upper()}] ID '{t.id}': {t.title} (Semana {t.week}) -> Impacto: {t.impact.value if t.impact else 'N/A'}"
             for t in session.tasks
         ]
         tasks_summary = "\n".join(tasks_lines)
     else:
-        tasks_summary = "No hay tareas activas en este momento."
+        tasks_summary = kanban_info_str
 
-    # Estado actual de la hoja de calculo mensual (table_store)
+    # Estado actual y valores de la matriz de proyeccion mensual (table_store)
     table_info_str = "No disponible"
     try:
         from frontend import table_store as ts
@@ -277,26 +309,23 @@ async def build_system_prompt(session_id: str, case_id: str) -> str:
         tb_rows = tb_data.get("rows", [])
         dates_list = [r.get("date") for r in tb_rows if r.get("date")]
         dates_range_str = f"desde {dates_list[0]} hasta {dates_list[-1]}" if dates_list else "sin filas"
+
+        sample_rows_lines = []
+        for r in tb_rows[:4]:
+            vals = [
+                f"{col}: ${float(r.get(col, 0)):,.0f}" if isinstance(r.get(col), (int, float)) else f"{col}: {r.get(col)}"
+                for col in tb_cols
+            ]
+            sample_rows_lines.append(f"  * Mes {r.get('date')}: " + " | ".join(vals))
+        sample_str = "\n".join(sample_rows_lines) if sample_rows_lines else "Sin datos"
+
         table_info_str = (
             f"Columnas registradas: {tb_cols}\n"
-            f"Meses disponibles: {dates_range_str} ({len(dates_list)} filas registradas)"
+            f"Meses proyectados: {dates_range_str} ({len(dates_list)} filas mensuales)\n"
+            f"Valores actuales de muestra (primeros meses):\n{sample_str}"
         )
     except Exception as e:
         table_info_str = f"Error leyendo tabla: {e}"
-
-    # Estado actual del tablero Kanban (kanban_store)
-    kanban_info_str = "No disponible"
-    try:
-        import kanban_store as ks
-        kb_data = ks.load(case_id=case_id)
-        kb_cards = kb_data.get("cards", [])
-        card_summaries = [
-            f"  * [{c.get('status')}] ID '{c.get('id')}': {c.get('title')}"
-            for c in kb_cards
-        ]
-        kanban_info_str = "\n".join(card_summaries) if card_summaries else "Sin tarjetas en el tablero."
-    except Exception as e:
-        kanban_info_str = f"Error leyendo kanban: {e}"
 
     transition_alerts_section = f"\n=== ALERTAS DE TRANSICION Y CALENDARIO ===\n{transition_alerts_str}" if transition_alerts_str else ""
     objective_concerns_section = f"\n=== PREOCUPACIONES OBJETIVAS DETECTADAS ===\n{objective_concerns_str}" if objective_concerns_str else ""
@@ -345,17 +374,57 @@ Polizas y Coberturas de Seguro:
 {objective_concerns_section}
 {tensions_section}
 
+=== ARQUITECTURA DEL DASHBOARD Y FUNCIONAMIENTO DE LA PLATAFORMA SHERPAS WEALTH ===
+El usuario tiene delante una aplicacion ejecutiva de finanzas generativas compuesta por 3 pestanas interactivas y una cabecera de KPIs:
+
+1. CABECERA Y METRICAS GLOBALES (KPIs):
+   - Health Score: Puntuacion actuarial global (0 a 100).
+   - Patrimonio Neto: Activos netos totales del hogar.
+   - Flujo Libre / Mes: Capacidad mensual de maniobra y ahorro limpio del hogar.
+   - Deuda Pendiente: Saldo total acumulado de pasivos vivos pendientes de amortizacion.
+   - Herramienta para sincronizar metricas globales: `update_dashboard_metric(key, value)`.
+
+2. PESTANA 1: "Plan de Accion" (TABLERO KANBAN DE TAREAS):
+   - Estructurado en 3 columnas de ejecucion:
+     * 'todo' (Por Ejecutar): Acciones recomendadas por el plan que aun no han comenzado.
+     * 'in_process' (En Curso): Acciones prioritarias que el cliente o asesor estan ejecutando ahora mismo.
+     * 'done' (Completado): Acciones finalizadas que ya generan valor y proteccion en el patrimonio.
+   - Cada tarjeta tiene su ID real (ej: 'task_1', 'task_4', etc.), titulo, categoria, impacto estimado y pasos numerados.
+   - COMO INTERACTUAR CON LAS TAREAS:
+     * Para mover o completar una tarea cuando el cliente lo pida: invoca `move_kanban_card(card_title_or_id='...', status='done')` o `manage_task(action='complete', task_id='...')`.
+     * Para anadir una nueva tarea acordada: invoca `add_kanban_card(...)` o `manage_box(...)`.
+     * Para eliminar una tarea: invoca `delete_kanban_card(...)` o `manage_task(action='delete', task_id='...')`.
+
+3. PESTANA 2: "Proyeccion Actuarial" (MATRIZ MENSUAL REACTIVA & CURVA ACTUARIAL):
+   - Muestra el modelo matematico proyectado a 12 meses vista (cada fila corresponde a un mes 'YYYY-MM').
+   - SIGNIFICADO EXACTO DE LAS COLUMNAS DEL MODELO (COMPRENSION VITAL OBLIGATORIA):
+     * 'Ingresos': Ingresos netos mensuales totales del hogar (ej: $15,000/mes).
+     * 'Gastos_Fijos': Suma de gastos mensuales de vida, vivienda y cuotas regulares de amortizacion de deudas (ej: $9,306/mes).
+       Si el cliente decide reducir un gasto (ej: mudanza a alquiler mas barato de -$500), 'Gastos_Fijos' baja a $8,806/mes.
+     * 'Ahorro_Libre': Flujo de caja libre mensual = 'Ingresos - Gastos_Fijos' (ej: $5,694/mes). Es el excedente disponible para ahorro, inversion o amortizaciones anticipadas. Se calcula dinamicamente.
+     * 'Deuda_Pendiente': ¡ATENCION CRITICA! ES EL SALDO TOTAL DE LA DEUDA VIVA ACUMULADA (ej: $28,500 en total).
+       > REGLA DE ORO OBLIGATORIA: 'Deuda_Pendiente' NO ES UNA CUOTA MENSUAL NI EL PAGO DE UNA TARJETA.
+       > Es el importe total pendiente de liquidar con los acreedores.
+       > Si el usuario dice "aumentemos el pago de la tarjeta Amex a $400/mes", NUNCA pongas 'Deuda_Pendiente = 400'. Poner 400 borraria erroneamente $28,000 de deuda viva.
+       > Lo correcto cuando el cliente aumenta o define una cuota mensual de amortizacion:
+         Opción A: La deuda viva total disminuye progresivamente mes a mes por la cuota pagada. Usa `apply_column_formula(column='Deuda_Pendiente', formula='max(0, prev - 400)')` o actualiza la serie con `set_cells`.
+         Opción B: Si es un pago extra sobre el presupuesto habitual, anade una columna especifica con `add_column(name='Amortizacion_Amex', default_value=400)`.
+         Opción C: Si el cliente amortiza de golpe un importe puntual (ej: desembolso de $2,000 de bonus para liquidar deuda), reduce el saldo de 'Deuda_Pendiente' en $2,000 desde ese mes.
+     * 'Patrimonio': PATRIMONIO NETO TOTAL (Net Worth). Saldo patrimonial neto del cliente (Activos - Pasivos). Crece acumulando mes a mes el 'Ahorro_Libre'.
+
+4. PESTANA 3: "Asesor Co-Pilot" (TERMINAL ESTRATEGICA CONVERSACIONAL):
+   - Es este chat donde interactuas con el cliente.
+   - Si te piden un desglose visual o comparativa: invoca `display_chart` (donut para distribucion de gastos o activos, barras para ingresos vs gastos y flujo libre).
+   - Si te piden simulaciones What-If de escenarios: invoca `simulate_scenario` o `financial_calculator`.
+
 === ESTADO ACTUAL DEL DASHBOARD FINANCIERO ===
 {dashboard_summary}
-
-=== LISTA DE TAREAS ACTUAL ===
-{tasks_summary}
 
 === HOJA DE CALCULO MENSUAL ACTUAL (TABLE STORE) ===
 {table_info_str}
 
 === TABLERO KANBAN ACTUAL (KANBAN STORE) ===
-Columnas del tablero: 'todo' (To do), 'in_process' (In process), 'done' (Done)
+Columnas del tablero: 'todo' (Por Ejecutar), 'in_process' (En Curso), 'done' (Completado)
 Tarjetas actuales:
 {kanban_info_str}
 
@@ -384,8 +453,17 @@ Tienes herramientas nativas de hoja de calculo (tipo Excel) totalmente abiertas 
 18. `inspect_case_data`: Consulta detalles profundos del caso en el servidor MCP oficial de Sherpas (part: 'financial-health', 'investment-analysis', 'persona').
 19. `manage_task`: Gestiona la lista de tareas pendientes (action: 'add', 'complete', 'delete').
 20. `update_dashboard_metric`: Actualiza metricas globales del dashboard.
+21. `simulate_scenario`: Ejecuta simulaciones matematicas What-If completas a 12-36 meses (ej: comparar compra de vivienda en 2027 vs 2028, amortizacion anticipada de tarjeta, shock imprevisto, bonus laboral) y proyecta el impacto en score y patrimonio con graficos comparativos.
+22. `generate_advisor_report_tool`: Genera la ficha ejecutiva de acompanamiento con preguntas clave para la reunion con el asesor.
+23. `financial_calculator`: Calculadora actuarial y financiera versatil (amortizacion de prestamos, valor futuro compuesto, runway de jubilacion, avalancha vs bola de nieve de deudas, ahorro fiscal de deducciones).
+24. `search_case_details`: Busqueda semantica y por palabras clave en todo el expediente del cliente (persona.md, informe de salud financiera, cartera de inversiones).
 
-DIRECTRICES OPERATIVAS:
+DIRECTRICES OPERATIVAS Y CREATIVIDAD ACTIVA (LET THE MODEL COOK):
+- AUTONOMIA Y CREATIVIDAD FINANCIERA TOTAL:
+  * No eres un bot pasivo que repite siempre lo mismo ni sigue un guion prefabricado. Eres un asesor patrimonial de elite con libertad absoluta para razonar, disenar estrategias personalizadas y sorprender al cliente.
+  * Tienes herramientas genericas y abiertas: usalas de forma combinada y creativa segun lo que cada conversacion exija.
+  * Si el cliente plantea dudas de futuro (comprar casa, tener un hijo, cambiar de trabajo, jubilarse antes): calcula los numeros exactos con `financial_calculator` o `simulate_scenario`, anade o ajusta columnas en la hoja con `add_column` o `set_cells`, genera un grafico comparativo con `display_chart` y estructura los pasos practicos en el tablero Kanban con `add_kanban_card`.
+  * Nunca te quedes en respuestas superficiales: ofrece alternativas A vs B, cuantifica el coste de oportunidad y ensena el impacto en su patrimonio real.
 - HERRAMIENTAS ABIERTAS Y CREATIVIDAD ESTILO EXCEL (NADA HARDCODEADO):
   * Tienes total libertad para modelar escenarios usando formulas, definiendo celdas manuales, anadiendo columnas personalizadas o calculando series.
   * NUNCA te limites a decir en texto que 'lo has actualizado' o 'lo vas a anotar'.

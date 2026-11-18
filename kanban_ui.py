@@ -15,25 +15,29 @@ BOARD_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+
   :root {
-    --surface: #111318;
-    --surface-2: #181b23;
-    --surface-3: #202430;
+    --bg: #04070d;
+    --surface: #0a0f18;
+    --surface-2: #0e1626;
+    --surface-3: #141f36;
     --border: rgba(255,255,255,0.08);
-    --border-strong: rgba(255,255,255,0.18);
-    --text: #f4f5f7;
-    --muted: rgba(244,245,247,0.62);
-    --accent: #4f8cff;
-    --green-bg: rgba(34, 197, 94, 0.12);
-    --green-border: rgba(34, 197, 94, 0.32);
-    --green-text: #4ade80;
+    --border-strong: rgba(69, 101, 214, 0.28);
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --accent: #4565d6;
+    --accent-light: #6586fc;
+    --green-bg: rgba(16, 185, 129, 0.12);
+    --green-border: rgba(16, 185, 129, 0.32);
+    --green-text: #34d399;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     background: transparent;
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   }
   .board {
     display: grid;
@@ -48,12 +52,13 @@ BOARD_HTML = r"""<!DOCTYPE html>
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 12px;
+    padding: 14px;
   }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-family: 'Poppins', sans-serif;
     font-weight: 600;
     padding: 2px 4px 10px;
     font-size: 0.94rem;
@@ -81,15 +86,15 @@ BOARD_HTML = r"""<!DOCTYPE html>
     position: relative;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
     cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.14s ease;
   }
   .card:hover {
     border-color: var(--border-strong);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
     transform: translateY(-1px);
   }
   .card.dragging {
@@ -158,9 +163,10 @@ BOARD_HTML = r"""<!DOCTYPE html>
 
   /* Titulo y texto breve en la tarjeta */
   .title {
+    font-family: 'Poppins', sans-serif;
     font-weight: 600;
     font-size: 0.94rem;
-    color: #f4f5f7;
+    color: #f8fafc;
     line-height: 1.35;
     margin-bottom: 6px;
     overflow-wrap: anywhere;
@@ -178,13 +184,13 @@ BOARD_HTML = r"""<!DOCTYPE html>
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: 6px;
+    padding-top: 8px;
     border-top: 1px solid rgba(255,255,255,0.05);
   }
   .modal-open-btn {
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.22);
-    color: var(--accent);
+    background: rgba(69, 101, 214, 0.12);
+    border: 1px solid rgba(69, 101, 214, 0.25);
+    color: #93c5fd;
     font-size: 0.76rem;
     font-weight: 600;
     border-radius: 6px;
@@ -193,7 +199,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
     transition: all 0.15s ease;
   }
   .modal-open-btn:hover {
-    background: rgba(79, 140, 255, 0.22);
+    background: rgba(69, 101, 214, 0.25);
     border-color: var(--accent);
     color: #fff;
   }
@@ -203,7 +209,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.78);
+    background: rgba(4, 7, 13, 0.82);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     z-index: 99999;
@@ -217,14 +223,14 @@ BOARD_HTML = r"""<!DOCTYPE html>
     display: flex !important;
   }
   .modal-dialog {
-    background: #181b23;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #0a0f18;
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 18px;
     width: 100%;
     max-width: 580px;
     max-height: 88vh;
     overflow-y: auto;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.82), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 1px 1px rgba(255, 255, 255, 0.08);
     padding: 24px 28px;
     position: relative;
     box-sizing: border-box;
@@ -265,16 +271,17 @@ BOARD_HTML = r"""<!DOCTYPE html>
     color: #ef4444;
   }
   .modal-title {
+    font-family: 'Poppins', sans-serif;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #f4f5f7;
+    color: #f8fafc;
     line-height: 1.35;
     margin-bottom: 14px;
     overflow-wrap: anywhere;
   }
   .modal-section-box {
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.22);
+    background: rgba(69, 101, 214, 0.08);
+    border: 1px solid rgba(69, 101, 214, 0.22);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 14px;
@@ -289,7 +296,7 @@ BOARD_HTML = r"""<!DOCTYPE html>
   }
   .modal-short-desc {
     font-size: 0.9rem;
-    color: #f4f5f7;
+    color: #f8fafc;
     line-height: 1.45;
   }
   .modal-detailed-desc {
@@ -337,8 +344,8 @@ BOARD_HTML = r"""<!DOCTYPE html>
     flex-wrap: wrap;
   }
   .btn-action-primary {
-    background: #22c55e;
-    color: #0b1e10;
+    background: #10b981;
+    color: #ffffff;
     font-weight: 700;
     font-size: 0.84rem;
     padding: 8px 16px;
@@ -348,22 +355,22 @@ BOARD_HTML = r"""<!DOCTYPE html>
     transition: all 0.15s ease;
   }
   .btn-action-primary:hover {
-    background: #16a34a;
+    background: #059669;
     color: #fff;
   }
   .btn-action-secondary {
-    background: rgba(79, 140, 255, 0.18);
+    background: rgba(69, 101, 214, 0.18);
     color: #93c5fd;
     font-weight: 600;
     font-size: 0.84rem;
     padding: 8px 14px;
     border-radius: 8px;
-    border: 1px solid rgba(79, 140, 255, 0.35);
+    border: 1px solid rgba(69, 101, 214, 0.35);
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .btn-action-secondary:hover {
-    background: rgba(79, 140, 255, 0.3);
+    background: rgba(69, 101, 214, 0.3);
     color: #fff;
   }
   .btn-action-close {
@@ -428,14 +435,14 @@ let lastArgs = null, lastLayout = "", dragged = null, dropped = false, seq = 0;
 let activeModalCard = null;
 
 const CAT_STYLES = {
-  debt: { label: "Deuda", icon: "💳", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.3)" },
-  savings: { label: "Ahorro", icon: "💰", color: "#10b981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.3)" },
-  investment: { label: "Inversion", icon: "📈", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.12)", border: "rgba(59, 130, 246, 0.3)" },
-  insurance: { label: "Seguros", icon: "🛡️", color: "#06b6d4", bg: "rgba(6, 182, 212, 0.12)", border: "rgba(6, 182, 212, 0.3)" },
-  lifestyle: { label: "Presupuesto", icon: "🌱", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)", border: "rgba(139, 92, 246, 0.3)" },
-  immediate: { label: "Prioritaria", icon: "⚡", color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.35)" },
+  debt: { label: "Deuda", icon: "💳", color: "#f87171", bg: "rgba(239, 68, 68, 0.12)", border: "rgba(239, 68, 68, 0.28)" },
+  savings: { label: "Ahorro", icon: "💰", color: "#34d399", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.28)" },
+  investment: { label: "Inversion", icon: "📈", color: "#60a5fa", bg: "rgba(59, 130, 246, 0.12)", border: "rgba(59, 130, 246, 0.28)" },
+  insurance: { label: "Seguros", icon: "🛡️", color: "#38bdf8", bg: "rgba(6, 182, 212, 0.12)", border: "rgba(6, 182, 212, 0.28)" },
+  lifestyle: { label: "Presupuesto", icon: "🌱", color: "#a78bfa", bg: "rgba(139, 92, 246, 0.12)", border: "rgba(139, 92, 246, 0.28)" },
+  immediate: { label: "Prioritaria", icon: "⚡", color: "#34d399", bg: "rgba(16, 185, 129, 0.15)", border: "rgba(16, 185, 129, 0.35)" },
   goal: { label: "Meta", icon: "🎯", color: "#818cf8", bg: "rgba(99, 102, 241, 0.15)", border: "rgba(99, 102, 241, 0.35)" },
-  alerta: { label: "Alerta", icon: "🚨", color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.35)" },
+  alerta: { label: "Alerta", icon: "🚨", color: "#f87171", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.35)" },
   general: { label: "General", icon: "📌", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.12)", border: "rgba(148, 163, 184, 0.25)" }
 };
 
@@ -729,7 +736,11 @@ post("streamlit:componentReady", {apiVersion: 1});
 _FRONTEND = Path(__file__).with_name("kanban_frontend")
 
 def changed() -> bool:
-    return ks.version() != st.session_state.kanban_version
+    ss = st.session_state
+    case_id = getattr(ss, "case_id", "michael-carter")
+    if "kanban_version" not in ss:
+        return False
+    return ks.version(case_id) != ss.kanban_version
 
 
 def _write_frontend() -> None:
@@ -849,9 +860,9 @@ def _add_card():
 def render():
     ss = st.session_state
     ss.board_rev = ss.get("board_rev", 0) + 1
-    ss.kanban_version = ks.version()
     case_id = getattr(ss, "case_id", "michael-carter")
     session_id = getattr(ss, "session_id", "default")
+    ss.kanban_version = ks.version(case_id)
 
     # Preguntar al usuario si quiere hablar con el agente tras anadir una tarea
     if "ask_talk_agent" in ss and ss.ask_talk_agent and ss.ask_talk_agent.get("type") == "task":
@@ -880,7 +891,7 @@ def render():
     with a:
         _add_card()
 
-    current_data = ks.load()
+    current_data = ks.load(case_id)
 
     event = _board(
         cards=current_data["cards"],
@@ -894,10 +905,10 @@ def render():
         ss.last_nonce = event["nonce"]
         try:
             if event["type"] == "delete":
-                ks.delete_card(event["id"])
+                ks.delete_card(event["id"], case_id=case_id)
             elif event["type"] == "move":
-                ks.arrange(event["layout"])
-            ss.kanban_version = ks.version()
+                ks.arrange(event["layout"], case_id=case_id)
+            ss.kanban_version = ks.version(case_id)
         except ValueError as e:
             st.toast(str(e))
         st.rerun()

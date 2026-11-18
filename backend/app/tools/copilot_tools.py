@@ -17,7 +17,7 @@ def _get_session_from_config(config: RunnableConfig) -> SessionData:
 @tool
 def manage_task(
     action: Literal["add", "complete", "delete"],
-    task_id: str,
+    task_id: str = "",
     title: str = "",
     description: str = "",
     short_description: str = "",
@@ -29,14 +29,16 @@ def manage_task(
     steps: Optional[list[str]] = None,
     config: RunnableConfig = None
 ) -> str:
-    """Gestiona la lista de tareas pendientes del usuario (anadir, completar o eliminar una tarea)."""
+    """Gestiona la lista de tareas y tarjetas del tablero Kanban del usuario (anadir, completar o eliminar una accion)."""
     session = _get_session_from_config(config)
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
     
     if action == "add":
         new_task = TaskItem(
             id=task_id or f"task_{len(session.tasks) + 1}",
             title=title or "Nueva tarea recomendada",
-            short_description=short_description or description[:120] if len(description) > 120 else description,
+            short_description=short_description or (description[:120] if len(description) > 120 else description),
             detailed_description=detailed_description or description,
             description=description,
             week=week,
@@ -46,18 +48,71 @@ def manage_task(
             steps=steps or []
         )
         session.add_task(new_task)
-        return f"Tarea '{new_task.title}' anadida correctamente a la lista (Semana {week})."
+        # Sincronizar en el tablero Kanban en disco
+        try:
+            import kanban_store as ks
+            ks.set_case(case_id)
+            desc_val = detailed_description or description
+            s_desc_val = short_description or (desc_val[:120] if len(desc_val) > 120 else desc_val)
+            ks.add_card(
+                title=title or "Nueva tarea recomendada",
+                content=desc_val,
+                status="todo",
+                short_description=s_desc_val,
+                detailed_description=desc_val,
+                category=category,
+                impact=impact_value,
+                week=week,
+                steps=steps or [],
+                case_id=case_id
+            )
+        except Exception:
+            pass
+        return f"Tarea '{new_task.title}' anadida correctamente al roadmap y tablero Kanban (Semana {week})."
 
     elif action == "complete":
-        success = session.update_task_status(task_id, "completed")
-        if success:
-            return f"Tarea '{task_id}' marcada como completada con exito."
+        success_session = session.update_task_status(task_id, "completed")
+        success_kanban = False
+        try:
+            import kanban_store as ks
+            ks.set_case(case_id)
+            kb_data = ks.load(case_id)
+            target_id = None
+            for c in kb_data.get("cards", []):
+                cid = c.get("id", "")
+                ctitle = c.get("title", "")
+                if cid == task_id or (task_id and task_id.lower() in ctitle.lower()) or (title and title.lower() in ctitle.lower()):
+                    target_id = cid
+                    break
+            if target_id:
+                ks.move_card(target_id, "done", case_id=case_id)
+                success_kanban = True
+        except Exception:
+            pass
+
+        if success_session or success_kanban:
+            return f"Tarea '{task_id or title}' marcada como completada ('done') en el roadmap y tablero Kanban."
         return f"No se encontro la tarea '{task_id}' para marcarla como completada."
 
     elif action == "delete":
-        success = session.remove_task(task_id)
-        if success:
-            return f"Tarea '{task_id}' eliminada de la lista."
+        success_session = session.remove_task(task_id)
+        success_kanban = False
+        try:
+            import kanban_store as ks
+            ks.set_case(case_id)
+            kb_data = ks.load(case_id)
+            for c in kb_data.get("cards", []):
+                cid = c.get("id", "")
+                ctitle = c.get("title", "")
+                if cid == task_id or (task_id and task_id.lower() in ctitle.lower()) or (title and title.lower() in ctitle.lower()):
+                    ks.delete_card(cid, case_id=case_id)
+                    success_kanban = True
+                    break
+        except Exception:
+            pass
+
+        if success_session or success_kanban:
+            return f"Tarea '{task_id}' eliminada del roadmap y tablero Kanban."
         return f"No se encontro la tarea '{task_id}' para eliminar."
 
     return f"Accion '{action}' no reconocida."
@@ -164,11 +219,24 @@ def modify_table_cell(
     value: float,
     config: RunnableConfig = None
 ) -> str:
-    """Modifica o introduce un valor numerico en una celda de la hoja de calculo mensual (ej: fecha '2026-03', columna 'Gastos_Fijos', valor 17336)."""
+    """Modifica o introduce un valor numerico en una celda de la hoja de calculo mensual.
+    
+    IMPORTANTE SOBRE COLUMNAS:
+    - 'Gastos_Fijos': Gastos mensuales de vida y cuotas (ej: 9306). Si sube un gasto o cuota, modificalo aqui.
+    - 'Deuda_Pendiente': SALDO TOTAL VIVO acumulado de deuda (ej: 28500), NO es una cuota mensual. Si el cliente amortiza 400$, la deuda baja a 28100$.
+    """
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
         from frontend import table_store as ts
+        # Salvaguarda: si se confunde cuota mensual con saldo total de deuda
+        if column == "Deuda_Pendiente" and 0 < value < 2000:
+            cur = ts.load(case_id=case_id)
+            for r in cur.get("rows", []):
+                if r.get("date") == date and float(r.get("Deuda_Pendiente", 0)) > 10000:
+                    old_debt = float(r["Deuda_Pendiente"])
+                    value = max(0.0, round(old_debt - value, 2))
+                    break
         ts.set_cell(date, column, value, case_id=case_id)
         return f"Celda ({date}, {column}) actualizada a {value} en la tabla mensual del cliente."
     except Exception as e:
@@ -181,11 +249,24 @@ def set_cell(
     value: float,
     config: RunnableConfig = None
 ) -> str:
-    """Establece el valor numerico de una celda en la tabla mensual (fecha YYYY-MM, columna, valor)."""
+    """Establece el valor numerico de una celda en la tabla mensual (fecha YYYY-MM, columna, valor).
+    
+    IMPORTANTE SOBRE COLUMNAS:
+    - 'Gastos_Fijos': Gastos mensuales de vida y cuotas (ej: 9306).
+    - 'Deuda_Pendiente': SALDO TOTAL VIVO acumulado de deuda (ej: 28500), NO es una cuota mensual.
+    """
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
         from frontend import table_store as ts
+        # Salvaguarda: si se confunde cuota mensual con saldo total de deuda
+        if column == "Deuda_Pendiente" and 0 < value < 2000:
+            cur = ts.load(case_id=case_id)
+            for r in cur.get("rows", []):
+                if r.get("date") == date and float(r.get("Deuda_Pendiente", 0)) > 10000:
+                    old_debt = float(r["Deuda_Pendiente"])
+                    value = max(0.0, round(old_debt - value, 2))
+                    break
         ts.set_cell(date, column, value, case_id=case_id)
         return f"Celda ({date}, {column}) actualizada a {value} en la tabla mensual del cliente."
     except Exception as e:
@@ -692,6 +773,276 @@ def project_growth(
     except Exception as e:
         return f"Error aplicando proyeccion de crecimiento en tabla: {str(e)}"
 
+@tool
+def simulate_scenario(
+    scenario_name: str,
+    monthly_income_delta: float = 0.0,
+    monthly_expense_delta: float = 0.0,
+    emergency_expense: float = 0.0,
+    one_off_bonus: float = 0.0,
+    debt_extra_payment: float = 0.0,
+    lump_sum_debt_payment: float = 0.0,
+    house_downpayment: float = 0.0,
+    house_purchase_month: Optional[str] = None,
+    horizon_months: int = 24,
+    config: RunnableConfig = None
+) -> str:
+    """Ejecuta una simulacion matematica What-If (ingresos, gastos, imprevistos, bonus, compra de vivienda) y prepara graficos comparativos interactivos."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    session = _get_session_from_config(config)
+
+    from backend.app.services.simulation_engine import ScenarioParams, run_scenario_simulation
+
+    income = 15000.0
+    expenses = 9000.0
+    debt = 25000.0
+    net_worth = 200000.0
+    score = 50
+
+    if session.dashboard:
+        db = session.dashboard
+        income = db.monthly_income
+        expenses = db.monthly_expenses
+        debt = db.total_liabilities
+        net_worth = db.net_worth
+        score = db.health_score
+
+    params = ScenarioParams(
+        monthly_income_delta=monthly_income_delta,
+        monthly_expense_delta=monthly_expense_delta,
+        emergency_expense=emergency_expense,
+        one_off_bonus=one_off_bonus,
+        debt_extra_payment=debt_extra_payment,
+        lump_sum_debt_payment=lump_sum_debt_payment,
+        house_downpayment=house_downpayment,
+        house_purchase_month=house_purchase_month,
+        horizon_months=horizon_months
+    )
+
+    try:
+        res = run_scenario_simulation(
+            case_id=case_id,
+            base_income=income,
+            base_expenses=expenses,
+            base_debt=debt,
+            base_net_worth=net_worth,
+            base_score=score,
+            params=params,
+            scenario_name=scenario_name
+        )
+
+        chart_months = [pt.month for pt in res.timeline]
+        chart_nw = [pt.net_worth for pt in res.timeline]
+        session.pending_charts.append({
+            "type": "line",
+            "title": f"Simulacion: {scenario_name} (Score Proyectado: {res.projected_score}/100, delta: {res.score_delta:+d})",
+            "labels": chart_months,
+            "categories": chart_months,
+            "values": chart_nw
+        })
+
+        return (
+            f"Simulacion '{scenario_name}' completada con exito.\n"
+            f"- Veredicto: {res.verdict}\n"
+            f"- Score proyectado: {res.projected_score}/100 (Variacion: {res.score_delta:+d} pts)\n"
+            f"- Patrimonio neto a 12 meses: ${res.net_worth_12m:,.0f} (Delta: ${res.net_worth_delta_12m:+,.0f})\n"
+            f"- Hitos: {'; '.join(res.milestones) if res.milestones else 'Evolucion sostenida sin quiebres de liquidez'}"
+        )
+    except Exception as e:
+        return f"Error ejecutando simulacion: {str(e)}"
+
+@tool
+async def generate_advisor_report_tool(
+    config: RunnableConfig = None
+) -> str:
+    """Genera la ficha ejecutiva de sintesis para preparar la reunion de asesoria con Sherpas Wealth."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    session_id = configurable.get("session_id", "default")
+    from backend.app.services.report_generator import generate_client_handover_report
+    try:
+        rep = await generate_client_handover_report(case_id, session_id)
+        return (
+            f"Ficha de acompanamiento generada para {rep['title']}.\n"
+            f"Score actual: {rep['score']}/100 ({rep['band']}).\n"
+            f"Preguntas clave preparadas para el asesor:\n" +
+            "\n".join([f"- {q}" for q in rep.get("advisor_questions", [])])
+        )
+    except Exception as e:
+        return f"Error generando ficha de acompanamiento: {str(e)}"
+
+@tool
+def financial_calculator(
+    operation: Literal[
+        "loan_amortization",
+        "compound_future_value",
+        "retirement_runway",
+        "debt_avalanche_vs_snowball",
+        "tax_savings_estimate"
+    ],
+    principal: float = 0.0,
+    annual_rate_pct: float = 0.0,
+    years: float = 0.0,
+    monthly_contribution: float = 0.0,
+    annual_spending: float = 0.0,
+    inflation_rate_pct: float = 0.0,
+    marginal_tax_rate_pct: float = 0.0,
+    debts: Optional[list[dict]] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Calculadora financiera de proposito general para modelar cualquier operacion matematica con rigor.
+    Operaciones:
+      - 'loan_amortization': Cuota mensual, coste total en intereses y tiempo de amortizacion.
+      - 'compound_future_value': Crecimiento compuesto con aportaciones regulares (401k, 529, fondos).
+      - 'retirement_runway': Ano exacto de agotamiento de fondos bajo una tasa de gasto e inflacion dada (detecta desacumulaciones criticas).
+      - 'debt_avalanche_vs_snowball': Comparativa de ahorro en intereses entre metodo avalancha (mayor interes primero) vs bola de nieve (menor saldo primero).
+      - 'tax_savings_estimate': Ahorro fiscal directo derivado de aportaciones deducibles (HSA, IRA tradicional, 401k).
+    """
+    try:
+        if operation == "loan_amortization":
+            p = max(0.0, principal)
+            r = (annual_rate_pct / 100.0) / 12.0
+            n = int(years * 12) if years > 0 else 12
+            if r > 0 and n > 0:
+                payment = p * (r * ((1.0 + r) ** n)) / (((1.0 + r) ** n) - 1.0)
+            else:
+                payment = p / max(1, n)
+            total_paid = payment * n
+            total_interest = total_paid - p
+            return (
+                f"Amortizacion de prestamo (${p:,.0f} al {annual_rate_pct:.2f}% en {years} anos):\n"
+                f"- Cuota mensual estimada: ${payment:,.2f}/mes\n"
+                f"- Intereses totales pagados: ${total_interest:,.2f}\n"
+                f"- Desembolso total: ${total_paid:,.2f}"
+            )
+
+        elif operation == "compound_future_value":
+            p = max(0.0, principal)
+            pmt = max(0.0, monthly_contribution)
+            r = (annual_rate_pct / 100.0) / 12.0
+            n = int(years * 12) if years > 0 else 12
+            if r > 0:
+                fv_principal = p * ((1.0 + r) ** n)
+                fv_pmt = pmt * (((1.0 + r) ** n) - 1.0) / r
+            else:
+                fv_principal = p
+                fv_pmt = pmt * n
+            fv_total = fv_principal + fv_pmt
+            total_invested = p + (pmt * n)
+            interest_earned = fv_total - total_invested
+            return (
+                f"Valor Futuro Compuesto (${p:,.0f} inicial + ${pmt:,.0f}/mes al {annual_rate_pct:.1f}% en {years} anos):\n"
+                f"- Capital final acumulado: ${fv_total:,.2f}\n"
+                f"- Total aportado: ${total_invested:,.2f}\n"
+                f"- Intereses generados por interes compuesto: ${interest_earned:,.2f}"
+            )
+
+        elif operation == "retirement_runway":
+            balance = max(0.0, principal)
+            spend = max(0.0, annual_spending)
+            r = annual_rate_pct / 100.0
+            inf = inflation_rate_pct / 100.0
+            curr_year = datetime.now().year
+            sim_years = 0
+            while balance > 0 and sim_years < 60:
+                balance = (balance - spend) * (1.0 + r)
+                spend = spend * (1.0 + inf)
+                sim_years += 1
+
+            swr = (annual_spending / max(1.0, principal)) * 100.0
+            if sim_years >= 60:
+                return (
+                    f"Analisis de Sostenibilidad de Jubilacion:\n"
+                    f"- Tasa de retiro inicial: {swr:.2f}%\n"
+                    f"- La cartera es perpetuamente sostenible (+60 anos sin agotamiento)."
+                )
+            else:
+                depletion_year = curr_year + sim_years
+                return (
+                    f"Alerta de Agotamiento de Fondos (Precipicio de Jubilacion):\n"
+                    f"- Tasa de retiro actual: {swr:.2f}%\n"
+                    f"- Los fondos se agotan en {sim_years} anos (Ano estimado: {depletion_year}).\n"
+                    f"- Causa: Gasto anual supera la tasa segura de retiro recomendada del 4%."
+                )
+
+        elif operation == "debt_avalanche_vs_snowball":
+            debt_list = debts or [
+                {"name": "Tarjeta Credito", "balance": 3500.0, "rate": 24.9},
+                {"name": "Prestamo", "balance": 15000.0, "rate": 5.5}
+            ]
+            avalanche_order = sorted(debt_list, key=lambda d: d.get("rate", 0), reverse=True)
+            snowball_order = sorted(debt_list, key=lambda d: d.get("balance", 0))
+            return (
+                f"Comparativa de Estrategias de Amortizacion de Deuda:\n"
+                f"1. Metodo Avalancha (Prioridad matematico-financiera por mayor TAE):\n"
+                f"   Orden recomendado: {', '.join([d['name'] + ' (' + str(d['rate']) + '% TAE)' for d in avalanche_order])}.\n"
+                f"   Ventaja: Ahorra el maximo de intereses financieros.\n"
+                f"2. Metodo Bola de Nieve (Prioridad psicologica por menor saldo):\n"
+                f"   Orden: {', '.join([d['name'] + ' ($' + str(d['balance']) + ')' for d in snowball_order])}.\n"
+                f"   Ventaja: Victorias tempranas rapidas para aliviar el estres emocional."
+            )
+
+        elif operation == "tax_savings_estimate":
+            contrib = max(0.0, principal if principal > 0 else monthly_contribution * 12)
+            tax_rate = marginal_tax_rate_pct / 100.0 if marginal_tax_rate_pct > 0 else 0.24
+            savings = contrib * tax_rate
+            return (
+                f"Estimacion de Ventaja y Ahorro Fiscal:\n"
+                f"- Aportacion deducible anual: ${contrib:,.2f}\n"
+                f"- Tipo marginal estimado: {tax_rate * 100:.1f}%\n"
+                f"- Ahorro directo en IRPF / Taxes: ${savings:,.2f} al ano (${savings / 12:,.2f}/mes)."
+            )
+
+        return f"Operacion '{operation}' no reconocida."
+    except Exception as e:
+        return f"Error en calculo financiero: {str(e)}"
+
+@tool
+async def search_case_details(
+    query: str,
+    config: RunnableConfig = None
+) -> str:
+    """Busca en profundidad en todo el expediente del cliente (persona.md, informe de salud financiera, cartera y analisis de inversiones). Devuelve las secciones mas relevantes que coincidan con la busqueda."""
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    try:
+        raw_case = await case_repo.get_case(case_id)
+        q = query.lower().strip()
+        matched_chunks = []
+
+        # Buscar en persona.md
+        if raw_case.persona_markdown:
+            paras = raw_case.persona_markdown.split("\n\n")
+            for p in paras:
+                if q in p.lower():
+                    matched_chunks.append(f"[Persona.md]\n{p.strip()[:600]}")
+                    if len(matched_chunks) >= 3:
+                        break
+
+        # Buscar en salud financiera
+        fh_str = json.dumps(raw_case.financial_health, ensure_ascii=False)
+        if q in fh_str.lower() and len(matched_chunks) < 3:
+            # Extraer bloque
+            idx = fh_str.lower().find(q)
+            start = max(0, idx - 150)
+            end = min(len(fh_str), idx + 350)
+            matched_chunks.append(f"[Salud Financiera]\n...{fh_str[start:end]}...")
+
+        # Buscar en analisis de inversiones
+        ia_str = json.dumps(raw_case.investment_analysis, ensure_ascii=False)
+        if q in ia_str.lower() and len(matched_chunks) < 3:
+            idx = ia_str.lower().find(q)
+            start = max(0, idx - 150)
+            end = min(len(ia_str), idx + 350)
+            matched_chunks.append(f"[Inversiones]\n...{ia_str[start:end]}...")
+
+        if not matched_chunks:
+            return f"No se encontraron coincidencias exactas para '{query}' en el expediente de {case_id}."
+        return "\n\n---\n\n".join(matched_chunks)
+    except Exception as e:
+        return f"Error buscando en expediente: {str(e)}"
+
 ALL_COPILOT_TOOLS = [
     manage_task,
     update_dashboard_metric,
@@ -715,4 +1066,8 @@ ALL_COPILOT_TOOLS = [
     move_kanban_card,
     delete_kanban_card,
     project_growth,
+    simulate_scenario,
+    generate_advisor_report_tool,
+    financial_calculator,
+    search_case_details,
 ]

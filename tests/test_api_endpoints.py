@@ -131,3 +131,132 @@ def test_api_dashboard_endpoints(client):
     updated_dash = r_patch.json()
     assert updated_dash["metrics"]["monthly_savings"]["value"] == 250.0
     assert updated_dash["metrics"]["monthly_savings"]["note"] == "Ajuste temporal por gasto del taller"
+
+
+def test_api_scenarios_and_simulate(client):
+    # Comprueba la obtencion de presets y la ejecucion de simulaciones What-If
+    case_id = "michael-carter"
+    
+    # 1. Obtener presets
+    r_pres = client.get(f"/api/cases/{case_id}/scenarios")
+    assert r_pres.status_code == 200
+    data_pres = r_pres.json()
+    assert data_pres["case_id"] == case_id
+    assert len(data_pres["presets"]) >= 3
+
+    # 2. Ejecutar simulacion What-If
+    sim_payload = {
+        "scenario_name": "Shock de prueba",
+        "params": {
+            "emergency_expense": 2000.0,
+            "horizon_months": 12
+        }
+    }
+    r_sim = client.post(f"/api/cases/{case_id}/simulate", json=sim_payload)
+    assert r_sim.status_code == 200
+    res = r_sim.json()
+    assert res["case_id"] == case_id
+    assert "projected_score" in res
+    assert len(res["timeline"]) == 12
+    assert "verdict" in res
+
+
+def test_api_handover_report(client):
+    # Comprueba la generacion del informe de cliente y asesor
+    case_id = "michael-carter"
+    r_rep = client.get(f"/api/cases/{case_id}/report")
+    assert r_rep.status_code == 200
+    rep = r_rep.json()
+    assert rep["case_id"] == case_id
+    assert "markdown" in rep
+    assert "html" in rep
+    assert len(rep["advisor_questions"]) >= 3
+
+
+def test_api_persona_insights(client):
+    # Comprueba las dimensiones psicologicas y arquetipos
+    case_id = "michael-carter"
+    r_ins = client.get(f"/api/cases/{case_id}/persona-insights")
+    assert r_ins.status_code == 200
+    ins = r_ins.json()
+    assert ins["case_id"] == case_id
+    assert "wealth_tier" in ins
+    assert "primary_tension" in ins
+    assert len(ins["key_alerts"]) >= 2
+
+
+def test_api_kanban_endpoints(client):
+    # Comprueba los endpoints del tablero Kanban y el arrange de tarjetas
+    case_id = "michael-carter"
+
+    # 1. Obtener kanban
+    r_get = client.get(f"/api/cases/{case_id}/kanban")
+    assert r_get.status_code == 200
+    kdata = r_get.json()
+    assert kdata["case_id"] == case_id
+    assert "cards" in kdata
+    assert len(kdata["cards"]) > 0
+
+    first_card = kdata["cards"][0]
+    card_id = first_card["id"]
+
+    # 2. Reorganizar / mover tarjeta de estado
+    r_arr = client.post(
+        f"/api/cases/{case_id}/kanban/arrange",
+        json={"card_id": card_id, "to_status": "done", "to_index": 0}
+    )
+    assert r_arr.status_code == 200
+    arr_data = r_arr.json()
+    assert arr_data["success"] is True
+
+    # 3. Anadir nueva tarjeta
+    r_add = client.post(
+        f"/api/cases/{case_id}/kanban/cards",
+        json={
+            "title": "Prueba de accion Kanban",
+            "category": "savings",
+            "impact": "+$100/mes",
+            "week": 1,
+            "steps": ["Paso 1 de prueba"]
+        }
+    )
+    assert r_add.status_code == 200
+    add_data = r_add.json()
+    assert add_data["success"] is True
+    new_cid = add_data["card"]["id"]
+
+    # 4. Eliminar tarjeta creada
+    r_del = client.delete(f"/api/cases/{case_id}/kanban/cards/{new_cid}")
+    assert r_del.status_code == 200
+    assert r_del.json()["success"] is True
+
+
+def test_api_table_endpoints(client):
+    # Comprueba la consulta y actualizacion de celdas en la tabla mensual
+    case_id = "michael-carter"
+
+    # 1. Obtener tabla
+    r_tbl = client.get(f"/api/cases/{case_id}/table")
+    assert r_tbl.status_code == 200
+    tdata = r_tbl.json()
+    assert "columns" in tdata
+    assert "rows" in tdata
+    assert len(tdata["rows"]) > 0
+
+    # 2. Actualizar celda numerica
+    first_date = tdata["rows"][0]["date"]
+    r_cell = client.post(
+        f"/api/cases/{case_id}/table/cell",
+        json={"date": first_date, "column": "Gastos_Fijos", "value": 9306.0}
+    )
+    assert r_cell.status_code == 200
+    assert r_cell.json()["success"] is True
+
+    # 3. Obtener resumen de la tabla
+    r_sum = client.get(f"/api/cases/{case_id}/table/summary")
+    assert r_sum.status_code == 200
+    sdata = r_sum.json()
+    assert "net_worth" in sdata
+    assert "free_cash_flow" in sdata
+
+

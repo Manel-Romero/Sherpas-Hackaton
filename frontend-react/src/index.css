@@ -1,0 +1,276 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-canvas: #f2f5f3;
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --accent-primary: #526e5e;
+  --accent-terra: #875f52;
+  --accent-sand: #7d7568;
+}
+
+.dark {
+  --color-canvas: #070b09;
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --accent-primary: #6e8c7b;
+  --accent-terra: #a17a6d;
+  --accent-sand: #9c9485;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--color-canvas);
+  color: var(--color-text-main);
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* Tabular figures for financial numbers */
+.num-tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* =========================================================
+   AUTHENTIC LIQUID GLASS SYSTEM (macOS / VisionOS Caliber)
+   ========================================================= */
+
+/* Major Dashboard Panels: Table, Kanban, Chat, Header */
+.liquid-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.38) 100%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.02),
+    0 12px 36px -4px rgba(15, 23, 42, 0.06);
+}
+
+.dark .liquid-glass {
+  background: linear-gradient(135deg, rgba(14, 22, 17, 0.66) 0%, rgba(8, 14, 11, 0.56) 100%);
+  backdrop-filter: blur(26px) saturate(180%);
+  -webkit-backdrop-filter: blur(26px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.3),
+    0 20px 48px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* Sub-Cards: KPI boxes, Kanban task cards, Assistant bubbles */
+.liquid-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.32) 100%);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.035),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 4px 16px -2px rgba(15, 23, 42, 0.04);
+}
+
+.dark .liquid-glass-card {
+  background: linear-gradient(135deg, rgba(16, 25, 20, 0.60) 0%, rgba(10, 18, 14, 0.50) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    0 8px 24px -3px rgba(0, 0, 0, 0.4);
+}
+
+/* Elevated Glass: Modals, Slide-overs, Floating Sheets */
+.liquid-glass-elevated {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 250, 252, 0.75) 100%);
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
+    0 24px 60px -8px rgba(15, 23, 42, 0.12);
+}
+
+.dark .liquid-glass-elevated {
+  background: linear-gradient(135deg, rgba(20, 28, 40, 0.92) 0%, rgba(13, 18, 26, 0.94) 100%);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.22),
+    0 28px 70px -10px rgba(0, 0, 0, 0.8);
+}
+
+/* Interactive Glass: Chips, Filter Tabs, Secondary Buttons */
+.liquid-glass-interactive {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), inset 0 1px 0 0 rgba(255, 255, 255, 0.85);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-interactive:hover {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 8px 24px -3px rgba(15, 23, 42, 0.07);
+  transform: translateY(-1px);
+}
+
+.dark .liquid-glass-interactive {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .liquid-glass-interactive:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.20);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), inset 0 1px 1px 0 rgba(255, 255, 255, 0.22), 0 12px 28px -4px rgba(0, 0, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Subtle neutral scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Recharts overrides for light and dark modes */
+.recharts-legend-item-text {
+  color: #475569 !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+.dark .recharts-legend-item-text {
+  color: #cbd5e1 !important;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: #64748b !important;
+  font-size: 10px !important;
+}
+.dark .recharts-cartesian-axis-tick-value {
+  fill: #94a3b8 !important;
+}
+
+.recharts-default-tooltip {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 14px !important;
+  color: #0f172a !important;
+  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.12) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.dark .recharts-default-tooltip {
+  background-color: rgba(15, 18, 25, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 14px !important;
+  color: #f8fafc !important;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.6) !important;
+}
+
+.dark .recharts-tooltip-item,
+.dark .recharts-tooltip-label {
+  color: #f8fafc !important;
+}
+
+/* =========================================================
+   ANIMATED DIFFUSE GREEN LIGHTS (Liquid Organic Auroras)
+   ========================================================= */
+
+@keyframes float-orb-1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(120px, -70px, 0) scale(1.16);
+  }
+  66% {
+    transform: translate3d(-90px, 100px, 0) scale(0.92);
+  }
+}
+
+@keyframes float-orb-2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(-130px, 110px, 0) scale(1.18);
+  }
+  66% {
+    transform: translate3d(100px, -70px, 0) scale(0.90);
+  }
+}
+
+@keyframes float-orb-3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(110px, -120px, 0) scale(1.15);
+  }
+}
+
+@keyframes float-orb-4 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-130px, -90px, 0) scale(1.18);
+  }
+}
+
+@keyframes float-orb-5 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(0.95);
+  }
+  50% {
+    transform: translate3d(-80px, 90px, 0) scale(1.22);
+  }
+}
+
+.animate-float-orb-1 {
+  animation: float-orb-1 16s ease-in-out infinite;
+}
+.animate-float-orb-2 {
+  animation: float-orb-2 20s ease-in-out infinite;
+}
+.animate-float-orb-3 {
+  animation: float-orb-3 18s ease-in-out infinite;
+}
+.animate-float-orb-4 {
+  animation: float-orb-4 22s ease-in-out infinite;
+}
+.animate-float-orb-5 {
+  animation: float-orb-5 15s ease-in-out infinite;
+}

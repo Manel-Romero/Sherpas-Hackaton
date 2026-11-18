@@ -15,10 +15,10 @@ class Settings(BaseSettings):
     MCP_URL: str = "https://mcp-hackathon.sherpaswealth.com/mcp"
     MCP_TOKEN: str = ""
 
-    # Configuracion de modelos en el proxy de Sherpas
+    # Configuracion de modelos de alto rendimiento
     FAST_MODEL: str = "gemini-3.5-flash-lite"
     REASONING_MODEL: str = "gpt-5-mini"
-    CHAT_MODEL: str = "gpt-5-mini"
+    CHAT_MODEL: str = "gemini-3.5-flash-lite"
 
     # Configuracion del servidor
     PORT: int = 8000
