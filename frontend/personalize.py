@@ -22,23 +22,23 @@ CASES_DIR = workspaces.CASES_DIR
 
 BAND_ES = {"critical": "crítico", "vulnerable": "vulnerable", "stable": "estable", "strong": "sólido"}
 PILLAR_ES = {
-    "Savings and cash flow": "ahorro y flujo de caja",
+    "Savings and cash flow": "ahorro mensual",
     "Debt": "deuda",
     "Investments": "inversiones",
-    "Liquidity and emergency fund": "liquidez y fondo de emergencia",
+    "Liquidity and emergency fund": "dinero de reserva para imprevistos",
     "Insurance and protection": "seguros y protección",
 }
 MOVE_ES = {
-    "Add umbrella cover": "contratar un seguro paraguas (responsabilidad civil)",
+    "Add umbrella cover": "contratar un seguro paraguas (te protege si te reclaman una indemnización muy alta)",
     "Raise mortality coverage": "subir el seguro de vida",
     "Add life cover": "contratar más seguro de vida",
     "Raise annual savings": "aumentar el ahorro anual",
-    "Lower the withdrawal rate": "reducir lo que retirarás al jubilarte",
-    "Raise growth allocation toward glide": "acercar la inversión a la cartera recomendada para tu edad",
-    "Reduce growth allocation toward glide": "acercar la inversión a la cartera recomendada para tu edad",
+    "Lower the withdrawal rate": "planear retirar menos dinero al año cuando te jubiles",
+    "Raise growth allocation toward glide": "ajustar el riesgo de tus inversiones a tu edad",
+    "Reduce growth allocation toward glide": "ajustar el riesgo de tus inversiones a tu edad",
     "Pay down revolving card": "pagar parte de la tarjeta de crédito",
-    "Close a coverage gap": "cerrar un hueco de cobertura en tus seguros",
-    "Reduce single-name concentration": "repartir mejor una inversión demasiado concentrada",
+    "Close a coverage gap": "cubrir algo importante que tus seguros hoy no cubren",
+    "Reduce single-name concentration": "no tener tanto dinero metido en una sola inversión",
 }
 
 # D6: lo que mueve al hogar -> cómo se le habla.  D5: cómo decide -> cómo se le guía.
@@ -161,7 +161,7 @@ def _move(m: dict) -> str:
 
 def _band_line(p: dict) -> str:
     s, band = p["score"], BAND_ES.get(p["band"], p["band"])
-    line = f"Tu score de salud financiera es **{s}/100** ({band})."
+    line = f"Tu **score** es **{s}/100** ({band}): una nota de 0 a 100 sobre lo preparada que está tu economía."
     if p["band"] == "critical":
         line += " Suena duro, pero casi todo se arregla ordenando prioridades; para eso está el plan."
     elif p["band"] == "vulnerable":
@@ -222,11 +222,11 @@ def steps(user_id: str) -> list[dict]:
     else:
         facts = []
         if p["net_worth"] is not None:
-            facts.append(f"- Patrimonio neto: **{_money(p['net_worth'])}**.")
+            facts.append(f"- Lo que tienes, descontando lo que debes (tu patrimonio): **{_money(p['net_worth'])}**.")
         fcf = p["free_cash_flow"]
         if fcf is not None:
-            facts.append(f"- Flujo de caja libre al año: **{'-' if fcf < 0 else ''}{_money(fcf)}**"
-                         + (" (gastas más de lo que entra)." if fcf < 0 else "."))
+            facts.append(f"- Lo que te sobra al año después de pagar tus gastos: **{'-' if fcf < 0 else ''}{_money(fcf)}**"
+                         + (" (gastas más de lo que ingresas)." if fcf < 0 else "."))
         if p["strongest"] and p["weakest"] and p["strongest"] is not p["weakest"]:
             facts.append(f"- Tu punto fuerte: **{_pillar(p['strongest'])}** ({p['strongest']['points']}).")
             facts.append(f"- Tu mayor hueco: **{_pillar(p['weakest'])}** ({p['weakest']['points']}).")
@@ -263,12 +263,12 @@ def steps(user_id: str) -> list[dict]:
 
     # 4) Proyección y datos
     ret_txt = (f" hasta tu jubilación a los {p['retirement_age']}" if p["retirement_age"] else "")
-    body = (f"Aquí ves cómo evoluciona tu patrimonio{ret_txt}.\n\n"
+    body = (f"Aquí ves cuánto dinero tendrás{ret_txt}, contando lo que tienes menos lo que debes.\n\n"
             "- **Edita cualquier celda** de la tabla y el gráfico se actualiza al momento.\n"
             "- Añade una fila para un mes nuevo o una columna para seguir otra cifra.\n")
     fcf = p["free_cash_flow"]
     if fcf is not None and fcf < 0:
-        body += "- Empieza por la columna de gastos: es donde está tu margen para volver a números positivos."
+        body += "- Mira primero la columna de gastos: es donde puedes recortar para que tu dinero deje de bajar."
     elif p["weakest"]:
         body += f"- Prueba a cambiar el ahorro mensual y mira cómo se mueve el gráfico; tu hueco principal es {_pillar(p['weakest'])}."
     out.append({"title": "Proyección y datos", "body": body})
@@ -286,7 +286,7 @@ def steps(user_id: str) -> list[dict]:
         origin = f" de **{src['label']}**" if src else ""
         out.append({"title": "Tu propia copia",
                     "body": f"Estás en tu copia del plan{origin}. Empezó igual que el original y ahora es tuya: "
-                            "lo que cambies aquí no afecta a nadie más. Tus datos de partida (patrimonio, deudas, objetivos) "
+                            "lo que cambies aquí no afecta a nadie más. Tus datos de partida (lo que tienes, lo que debes, tus objetivos) "
                             f"siguen siendo los del hogar, así que el informe de arriba es el de {p['label'] if not who else 'vuestro hogar'}."})
     elif who:
         out.append({"title": f"{name} y {who}",

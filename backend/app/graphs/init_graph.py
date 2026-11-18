@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class SynthesizedCaseOutput(BaseModel):
     # Estructura tipada generada por el modelo de razonamiento maestro
     executive_summary: str = Field(
-        description="Resumen cognitivo y financiero (1500-2000 tokens) que incluye salud financiera, tensiones emocionales y alertas criticas."
+        description="Resumen cognitivo y financiero (1500-2000 tokens) que incluye salud financiera, tensiones emocionales y alertas criticas. Se muestra al usuario, asi que va en segunda persona y en lenguaje llano; el primer parrafo (3-4 frases) debe poder leerse solo."
     )
     headline: str = Field(description="Titular motivador que resume el objetivo principal del caso")
     immediate_action_title: str = Field(description="La accion mas urgente que debe hacer hoy")
@@ -76,6 +76,7 @@ REGLAS DE SHERPAS:
 - NUNCA inventes numeros. Usa exclusivamente los datos del caso.
 - Empatia y respeto: Si la persona tiene panico o score bajo (ej. 26), no juzgues ni uses tono paternalista; dale una victoria rapida y tratalo como un adulto inteligente sin hacerle sentir culpable ni abrumado.
 - Lenguaje accesible: Redacta los titulares, motivos y tareas en un lenguaje claro, terrenal y comprensible para no expertos, evitando tecnicismos financieros innecesarios.
+- El RESUMEN EJECUTIVO se muestra tal cual al usuario en su tutorial y lo lee una persona sin conocimientos financieros: escribelo en segunda persona ("tu", "tienes"), con frases cortas, sin codigos internos (D0 a D6), sin siglas ni jerga. Si necesitas un termino tecnico, explicalo en una frase con palabras de calle (por ejemplo, "lo que te sobra cada mes" en vez de "flujo de caja libre", "lo que tienes menos lo que debes" en vez de "patrimonio neto"). El primer parrafo (3-4 frases) debe poder leerse solo: donde esta hoy, que le preocupa y que es lo primero que hacer.
 - Accion: Haz que la primera accion tome menos de 3 minutos.
 - ERES EL ASESOR FINANCIERO: NUNCA generes tareas que digan 'Consulta con un asesor financiero' o 'Habla con un profesional'. Eres el asesor de Sherpas que comunica las acciones concretas para el cliente (ej: 'Rebalancear la cartera hacia un perfil 80/20' o 'Emitir ampliacion de poliza con la aseguradora').
 - GENERACION ESTRUCTURADA ESTRICTA (JSON limpio sin prefijos):
