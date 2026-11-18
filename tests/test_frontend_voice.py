@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "frontend"))
+sys.path.append(str(ROOT / "frontend"))   # al final: no debe tapar table_store de la raíz con el reexport
 
 import personalize  # noqa: E402
 import voice  # noqa: E402

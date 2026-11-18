@@ -9,6 +9,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import tools_condition
 
 from backend.app.config import settings
+import project_paths
 from backend.app.graphs.state import CopilotState
 from backend.app.services.session_store import session_store
 from backend.app.services.llm_factory import get_chat_llm
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 def _saved_summary(case_id: str) -> str:
     # Resumen ejecutivo guardado por el frontend (data/cases/<id>/summary.json). Sobrevive a reinicios del backend.
     try:
-        f = Path(__file__).resolve().parents[3] / "data" / "cases" / case_id / "summary.json"
+        f = project_paths.DATA_CASES_DIR / case_id / "summary.json"
         return (json.loads(f.read_text(encoding="utf-8")).get("executive_summary") or "").strip()
     except Exception:
         return ""

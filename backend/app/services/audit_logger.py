@@ -3,11 +3,11 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+import project_paths
 
 logger = logging.getLogger("copilot.audit")
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-LOGS_DIR = BASE_DIR / "data" / "logs"
+LOGS_DIR = project_paths.LOGS_DIR
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 GLOBAL_AUDIT_FILE = LOGS_DIR / "copilot_audit.log"
 
@@ -43,7 +43,7 @@ def log_prompt(session_id: str, case_id: str, user_message: str, system_prompt_s
     )
     logger.info(log_line)
 
-    case_log_file = BASE_DIR / "data" / "cases" / case_id / "copilot_audit.log"
+    case_log_file = project_paths.DATA_CASES_DIR / case_id / "copilot_audit.log"
     entry_formatted = (
         f"================================================================================\n"
         f"[{ts}] [PROMPT] Case: {case_id} | Session: {session_id}\n"
@@ -85,7 +85,7 @@ def log_tool_call(
     )
     logger.info(log_line)
 
-    case_log_file = BASE_DIR / "data" / "cases" / case_id / "copilot_audit.log"
+    case_log_file = project_paths.DATA_CASES_DIR / case_id / "copilot_audit.log"
     entry_formatted = (
         f"--------------------------------------------------------------------------------\n"
         f"[{ts}] [MCP_TOOL_CALL] Tool: {tool_name} | Case: {case_id}\n"
@@ -125,7 +125,7 @@ def log_response(
     )
     logger.info(log_line)
 
-    case_log_file = BASE_DIR / "data" / "cases" / case_id / "copilot_audit.log"
+    case_log_file = project_paths.DATA_CASES_DIR / case_id / "copilot_audit.log"
     entry_formatted = (
         f"--------------------------------------------------------------------------------\n"
         f"[{ts}] [RESPONSE] Case: {case_id} | Session: {session_id}\n"

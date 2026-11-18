@@ -4,8 +4,9 @@ import json
 import os
 import threading
 from pathlib import Path
+import project_paths
 
-BASE_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "cases"
+BASE_DATA_DIR = project_paths.DATA_CASES_DIR
 _lock = threading.Lock()
 
 def get_boxes_file(case_id: str = "michael-carter") -> Path:

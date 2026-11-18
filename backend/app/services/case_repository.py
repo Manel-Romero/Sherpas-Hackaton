@@ -6,6 +6,7 @@ from typing import Any, Optional
 from mcp import ClientSession
 from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 from backend.app.config import settings
+import project_paths
 from backend.app.models.case import CaseSummary, CaseFull, HouseholdMember
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ def _parse_mcp_content(raw_text: str) -> Any:
     except json.JSONDecodeError:
         return raw_text
 
-_DATA_CASES_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "cases"
+_DATA_CASES_DIR = project_paths.DATA_CASES_DIR
 
 
 def resolve_base_case(case_id: str) -> str:

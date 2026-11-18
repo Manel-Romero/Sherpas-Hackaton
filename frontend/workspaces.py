@@ -19,10 +19,11 @@ import time
 import unicodedata
 from functools import lru_cache
 from pathlib import Path
+import project_paths
 
-ROOT = Path(__file__).resolve().parent.parent
-CASES_DIR = ROOT / "cases"
-DATA_DIR = ROOT / "data" / "cases"          # el mismo sitio que usan table_store y kanban_store
+ROOT = project_paths.ROOT
+CASES_DIR = project_paths.CASES_DIR
+DATA_DIR = project_paths.DATA_CASES_DIR      # el mismo sitio que usan table_store y kanban_store
 DATA_FILES = ("table.json", "kanban.json", "boxes.json", "summary.json")
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 

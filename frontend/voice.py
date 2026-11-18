@@ -16,8 +16,9 @@ from pathlib import Path
 import httpx
 
 import envconfig
+import project_paths
 
-CACHE_DIR = envconfig.ROOT / "data" / "audio_cache"
+CACHE_DIR = project_paths.AUDIO_CACHE_DIR
 MAX_CHARS = 1200
 PRICE_PER_1K = {"eleven-flash-v2.5": 0.04, "eleven-multilingual-v2": 0.08, "eleven-v3": 0.08}
 TIMEOUT = 60.0

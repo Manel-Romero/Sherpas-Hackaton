@@ -10,8 +10,9 @@ import os
 import threading
 import uuid
 from pathlib import Path
+import project_paths
 
-BASE_DATA_DIR = Path(__file__).resolve().parent / "data" / "cases"
+BASE_DATA_DIR = project_paths.DATA_CASES_DIR
 KANBAN_FILE = Path(os.environ.get("KANBAN_JSON", Path(__file__).with_name("kanban.json")))
 _lock = threading.Lock()
 

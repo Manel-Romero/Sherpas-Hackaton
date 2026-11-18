@@ -15,8 +15,9 @@ import threading
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
+import project_paths
 
-BASE_DATA_DIR = Path(__file__).resolve().parent / "data" / "cases"
+BASE_DATA_DIR = project_paths.DATA_CASES_DIR
 DATA_FILE = Path(os.environ.get("TABLE_JSON", Path(__file__).with_name("table.json")))
 DATE_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _lock = threading.Lock()
