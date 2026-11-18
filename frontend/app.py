@@ -81,15 +81,19 @@ def initialize_plan(auto: bool = False) -> None:
             r = httpx.post(f"{API_BASE_URL}/api/cases/{ss.case_id}/init",
                            json={"session_id": ss.session_id}, timeout=180)
         except httpx.ConnectError:
+            ss.init_error = f"no puedo conectar con el backend en {API_BASE_URL} (arráncalo con uvicorn)."
             st.error(f"No puedo conectar con el backend en {API_BASE_URL}. "
                      "Arráncalo con `uvicorn backend.app.main:app --port 8000`.")
             return
         except Exception as e:
+            ss.init_error = f"error al llamar al backend: {e}"
             st.error(f"Error al llamar al backend: {e}")
             return
     if r.status_code != 200:
+        ss.init_error = f"el backend respondió {r.status_code}: {r.text[:200]}"
         st.error(f"No se pudo cargar el plan: {r.text[:300]}")
         return
+    ss.pop("init_error", None)
     workspaces.save_plan_summary(ss.user, r.json())     # el backend solo lo guarda en memoria: lo guardamos en data/
     plan = r.json().get("master_plan", {})
     action = plan.get("immediate_action", {}).get("title", "")
@@ -109,7 +113,7 @@ def initialize_plan(auto: bool = False) -> None:
 want_tutorial, want_plan = users_ui.user_strip(user)
 if want_tutorial:
     tutorial.request(ss.user)
-if want_plan:
+if want_plan or ss.pop("want_plan_now", False):
     initialize_plan()
 elif not ss.get("auto_init_tried") and workspaces.load_plan_summary(ss.user) is None:
     initialize_plan(auto=True)      # primera entrada: genera el plan y el resumen antes del tutorial

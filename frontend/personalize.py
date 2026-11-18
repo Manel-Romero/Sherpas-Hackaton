@@ -235,8 +235,8 @@ def steps(user_id: str) -> list[dict]:
             facts.append(f"- Objetivo: jubilarte a los **{p['retirement_age']}**" + (f" (dentro de {y} años)." if y else "."))
         out.append({"title": "Dónde estás hoy",
                     "body": "Esto es lo que dice tu informe:\n\n" + "\n".join(facts)
-                            + "\n\nCuando pulses **Cargar plan**, el Co-Pilot lo convierte en un resumen y un plan a tu medida, "
-                              "y este tutorial lo mostrará aquí."})
+                            + "\n\nEsto es la versión básica. Con tu plan generado (botón **Cargar plan**, arriba), el Co-Pilot lo convierte "
+                              "en un resumen y un plan a tu medida, y este tutorial los muestra aquí."})
 
     # 3) Plan de acción
     if plan and (plan.get("immediate_action") or plan.get("tasks")):
@@ -297,7 +297,7 @@ def steps(user_id: str) -> list[dict]:
                     "body": "Con **Usuarios** puedes crear otro usuario **copiando tus datos** (una pareja, un asesor…). "
                             "Cada uno edita lo suyo sin afectar al otro."})
     if not plan:
-        out[-1]["body"] += "\n\nPara empezar, pulsa **Cargar plan** y el Co-Pilot lo genera."
+        out[-1]["body"] += "\n\nPara tener el tutorial completo, pulsa **Cargar plan** (arriba) y el Co-Pilot lo genera."
     return out
 
 
