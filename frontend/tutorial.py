@@ -2,7 +2,7 @@
 un usuario entra, y que se puede volver a abrir con el botón "Tutorial".
 
 Los pasos salen de personalize.steps(): usan el resumen y el plan que generó "Cargar plan" para ese
-usuario (data/cases/<id>/summary.json) y su persona. Cada paso se puede escuchar con el botón 🔊."""
+usuario (data/cases/<id>/summary.json) y su persona. Cada paso se puede escuchar con el botón Escuchar."""
 import streamlit as st
 
 from compat import stretch
@@ -20,7 +20,7 @@ def _dialog() -> None:
     last = step == len(steps) - 1
 
     st.progress((step + 1) / len(steps), text=f"Paso {step + 1} de {len(steps)}")
-    st.markdown(f"## {s['icon']} {s['title']}")
+    st.markdown(f"## {s['title']}")
     st.markdown(s["body"])
     if s.get("more"):
         with st.expander("Ver el resumen completo"):

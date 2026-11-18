@@ -30,8 +30,8 @@ from streamlit import config as _st_config
 
 # Tema oscuro forzado desde el código: así no depende de .streamlit/config.toml ni de desde qué
 # carpeta se lance la app (sin esto, la tabla y los menús salen en blanco en equipos con modo claro).
-for _key, _val in {"base": "dark", "primaryColor": "#4f8cff", "backgroundColor": "#0a0b0f",
-                   "secondaryBackgroundColor": "#111318", "textColor": "#f4f5f7"}.items():
+for _key, _val in {"base": "dark", "primaryColor": "#86c9a4", "backgroundColor": "#0e1311",
+                   "secondaryBackgroundColor": "#151c19", "textColor": "#eef3ef"}.items():
     _st_config.set_option(f"theme.{_key}", _val)
 
 import chat_ui
@@ -47,7 +47,7 @@ from style import style
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
-st.set_page_config(page_title="Sherpas Co-Pilot", page_icon="🧭", layout="wide")
+st.set_page_config(page_title="Sherpas Co-Pilot", page_icon=":material/landscape:", layout="wide")
 st.markdown(style, unsafe_allow_html=True)
 
 ss = st.session_state
@@ -65,7 +65,7 @@ ks.set_case(ss.user)
 table_ui.refresh()
 
 if ss.pop("notify_changes", False):
-    st.toast(f"Cambios aplicados: {ss.get('notify_msg', '')}", icon="✅")
+    st.toast(f"Cambios aplicados: {ss.get('notify_msg', '')}", icon=":material/check_circle:")
 
 
 def initialize_plan(auto: bool = False) -> None:
@@ -146,7 +146,7 @@ def watcher():
     if ss.get("is_streaming"):
         return
     if table_ui.changed() or kanban_ui.changed():
-        st.toast("Plan actualizado", icon="🔄")
+        st.toast("Plan actualizado", icon=":material/sync:")
         st.rerun()
 
 

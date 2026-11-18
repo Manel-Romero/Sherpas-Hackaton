@@ -32,7 +32,7 @@ def changed() -> bool:
 
 
 def _add_column():
-    with st.popover("➕ Añadir columna"):
+    with st.popover("Añadir columna", icon=":material/add:"):
         with st.form("add_col", clear_on_submit=True):
             name = st.text_input("Nombre de la columna")
             default = st.number_input("Valor por defecto", value=0.0)
@@ -64,7 +64,7 @@ def render():
             with c_info:
                 st.info(f"Has añadido la columna **'{col_name}'**. ¿Quieres hablar con el Co-Pilot sobre ella?")
             with c_action:
-                if st.button("💬 Hablar con el agente", key=f"talk_col_{col_name}"):
+                if st.button("Hablar con el agente", icon=":material/chat:", key=f"talk_col_{col_name}"):
                     del ss.ask_talk_agent
                     import kanban_ui
                     case_id = getattr(ss, "case_id", "michael-carter")
@@ -77,7 +77,7 @@ def render():
                     )
                     st.rerun()
             with c_close:
-                if st.button("✕ No", key=f"dismiss_col_{col_name}"):
+                if st.button("No", key=f"dismiss_col_{col_name}"):
                     del ss.ask_talk_agent
                     st.rerun()
 

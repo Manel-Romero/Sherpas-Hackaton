@@ -3,7 +3,7 @@
 Cada usuario es una carpeta data/cases/<id>/ con sus ficheros:
     table.json, kanban.json, boxes.json   -> datos del plan (los usan table_store / kanban_store)
     chat.json                             -> conversación guardada
-    summary.json                          -> lo que generó "🚀 Cargar plan": resumen ejecutivo, titular y primera acción
+    summary.json                          -> lo que generó "Cargar plan": resumen ejecutivo, titular y primera acción
     meta.json                             -> {display_name, base_case, copied_from, tutorial_done}
 
 Los 4 casos de Sherpas (carpeta cases/) son usuarios de serie. Un usuario nuevo se crea

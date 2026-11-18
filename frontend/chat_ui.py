@@ -22,13 +22,13 @@ import workspaces
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
 SUGGESTIONS = [
-    ("🚨 Gasto imprevisto de 2.000 $",
+    ("Gasto imprevisto de 2.000 $",
      "He tenido un gasto imprevisto de 2.000 $. Ajusta mi tabla para absorberlo y dime cómo afecta a mi plan."),
-    ("🔍 Explícame mi score",
+    ("Explícame mi score",
      "Explícame mi score de salud financiera y cuál es mi principal cuello de botella, sin tecnicismos."),
-    ("💰 Me dan un bonus de 15.000 $",
+    ("Me dan un bonus de 15.000 $",
      "Voy a recibir un bonus de 15.000 $. ¿Qué hago con él? Aplica los cambios que recomiendes en mi tabla."),
-    ("📊 Gráfico de mis gastos",
+    ("Gráfico de mis gastos",
      "Muéstrame un gráfico con la distribución de mis ingresos y gastos mensuales actuales."),
 ]
 
@@ -78,7 +78,7 @@ def render(prompt: str | None) -> None:
     ss.setdefault("messages", [])
     st.markdown('<span class="marker chat-marker"></span>', unsafe_allow_html=True)
 
-    spoken = voice_ui.mic_prompt()                   # 🎤 pregunta dicha en voz alta (ya transcrita)
+    spoken = voice_ui.mic_prompt()                   # pregunta dicha en voz alta (ya transcrita)
     chip = None
     if not ss.messages:
         box, chip = _empty_state()
@@ -133,7 +133,7 @@ def _stream_reply(prompt: str) -> None:
                             text += ev.get("content") or ev.get("delta", "")
                             slot.markdown(text + "▌")
                         elif kind == "tool_start":
-                            note = f"*⚡ Aplicando cambios ({ev.get('tool', 'herramienta')})…*"
+                            note = f"*Aplicando cambios ({ev.get('tool', 'herramienta')})…*"
                             slot.markdown(f"{text}\n\n{note}" if text else note)
                         elif kind == "tool_end" and ev.get("modified"):
                             changed = True

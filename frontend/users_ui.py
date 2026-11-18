@@ -67,13 +67,13 @@ def login_screen() -> None:
             detail = f"{u['city']} · " if u["city"] else ""
             label = f"{u['label']}  —  {detail}score {u['score']}/100"
             if u["custom"]:
-                label = "👤 " + label
+                label += "  (copia)"
             if cols[i % 2].button(label, key=f"login_{u['id']}", **stretch(st.button)):
                 login(u["id"])
 
     left, mid, right = st.columns([1, 2, 1])
     with mid:
-        with st.expander("➕ Crear un usuario nuevo copiando los datos de otro"):
+        with st.expander("Crear un usuario nuevo copiando los datos de otro"):
             create_user_form(users[0]["id"] if users else None, key="login")
     st.stop()
 
@@ -86,15 +86,15 @@ def user_strip(user: dict | None) -> tuple[bool, bool]:
     with c_user:
         if user:
             st.markdown(
-                f"<div class='user-chip'><span>👤</span><strong>{user['label']}</strong>"
+                f"<div class='user-chip'><strong>{user['label']}</strong>"
                 f"<span class='user-meta'>{user['city']} · score {user['score']}/100 "
                 f"({workspaces.score_label(user['score'])})</span></div>",
                 unsafe_allow_html=True)
-    tut = c_tut.button("❔ Tutorial", **stretch(st.button))
-    plan = c_plan.button("🚀 Cargar plan", **stretch(st.button),
+    tut = c_tut.button("Tutorial", icon=":material/help:", **stretch(st.button))
+    plan = c_plan.button("Cargar plan", icon=":material/play_arrow:", **stretch(st.button),
                          help="El Co-Pilot analiza tu caso y rellena el plan, la tabla y las tareas.")
     with c_users:
-        with st.popover("👥 Usuarios", **stretch(st.popover)):
+        with st.popover("Usuarios", icon=":material/group:", **stretch(st.popover)):
             if st.button("Cambiar de usuario", key="switch_user", **stretch(st.button)):
                 logout()
             st.markdown("**Crear usuario copiando este**")

@@ -1,38 +1,62 @@
 # =============================================================================
-# 1. STYLING
+# STYLING
 # =============================================================================
 # Streamlit has no built-in way to restyle things this much, so we inject our
-# own CSS. We use "!important" a lot because Streamlit's own styles are quite
-# specific and would otherwise win.
+# own CSS. "!important" is used a lot because Streamlit's own styles are specific.
 #
 # Design rules used throughout:
-#   - Surfaces get lighter as they come "closer": page < card < raised/hover.
-#   - Borders are faint (white at ~8% opacity), never solid white.
-#   - ONE accent color (--accent) for the things you can act on.
-#   - Rounded corners: 10px for small things, 16px for cards, 999px for pills.
+#   - Dark "ink" base with a slight green cast; surfaces get lighter as they come closer.
+#   - Colour carries meaning (status, category, money in / out), never decoration:
+#     no gradients, glows, shadows or lift-on-hover.
+#   - Type does the work: Newsreader (serif) for titles and figures, Hanken Grotesk for everything else.
+#   - Corner radius follows hierarchy: 6px controls, 10px containers.
+#   - No emoji as icons. Icons are Material symbols or nothing.
+import base64
+from pathlib import Path
+
+_FONTS = Path(__file__).with_name("fonts")
+
+
+def _font_face(family: str, file: str, weights: str) -> str:
+    """@font-face with the font embedded (works offline and from any launch folder)."""
+    try:
+        data = base64.b64encode((_FONTS / file).read_bytes()).decode()
+    except OSError:
+        return ""                                     # fonts missing: the system fonts below take over
+    return (f"@font-face {{ font-family: '{family}'; font-style: normal; font-weight: {weights}; "
+            f"font-display: swap; src: url(data:font/woff2;base64,{data}) format('woff2'); }}")
+
+
+FONT_CSS = (_font_face("Newsreader", "Newsreader-latin-wght.woff2", "200 800")
+            + _font_face("Hanken Grotesk", "HankenGrotesk-latin-wght.woff2", "100 900"))
 
 style = """
     <style>
-    /* Load the Inter font (falls back to the system font if offline) */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    %FONTS%
 
     /* ---- Theme variables: change a color here and it changes everywhere ---- */
     :root {
-        --bg: #0a0b0f;                         /* page background */
-        --surface: #111318;                    /* cards, input */
-        --surface-2: #181b23;                  /* raised: hover, user bubbles */
-        --border: rgba(255, 255, 255, 0.08);   /* faint outline */
-        --border-strong: rgba(255, 255, 255, 0.16);
-        --text: #f4f5f7;
-        --muted: rgba(244, 245, 247, 0.82);    /* secondary text */
-        --accent: #4f8cff;                     /* the one accent color */
-        --accent-soft: rgba(79, 140, 255, 0.22);
+        --bg: #0e1311;                         /* page: ink with a green cast */
+        --surface: #151c19;                    /* inputs, cards */
+        --surface-2: #1d2622;                  /* raised: hover, your messages */
+        --border: rgba(222, 236, 228, 0.11);   /* hairline */
+        --border-strong: rgba(222, 236, 228, 0.24);
+        --text: #eef3ef;
+        --muted: #b6c3bb;                      /* secondary text, still high contrast */
+        --accent: #d6e6dc;                     /* pale glacier: actions and focus */
+        --accent-soft: rgba(214, 230, 220, 0.20);
+        --good: #86c9a4;                       /* money in, done */
+        --warn: #e2b560;                       /* attention, in progress */
+        --bad: #e58a78;                        /* money out, alert */
+        --serif: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+        --sans: 'Hanken Grotesk', -apple-system, 'Segoe UI', system-ui, sans-serif;
     }
 
     /* ---- Font: applied to text, but NOT to icons (they use their own font) ---- */
     .stApp, .stApp p, .stApp h1, .stApp h2, .stApp h3, .stApp label,
     .stApp button, .stApp textarea, .stApp [data-testid="stMarkdownContainer"] {
-        font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif !important;
+        font-family: var(--sans) !important;
+        font-feature-settings: 'tnum' 1, 'kern' 1;
     }
     /* Default text color. :where() gives it zero priority, so any more specific
        rule below (muted text, dark text on a light button...) wins easily. */
@@ -73,7 +97,7 @@ style = """
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(222, 236, 228, 0.16);
         border-radius: 999px;
         border: 2px solid var(--bg);
     }
@@ -92,25 +116,23 @@ style = """
         display: flex !important;
         justify-content: center !important;   /* centers "Vertical" and "Chat" */
         gap: 4px !important;
-        background: rgba(10, 11, 15, 0.82) !important;
-        backdrop-filter: blur(14px);          /* frosted-glass effect */
+        background: var(--bg) !important;
         padding: 10px 0 !important;
         border-bottom: 1px solid var(--border) !important;
         border-radius: 0 !important;
     }
     /* App name on the far left: an accent dot + text, drawn with CSS only */
     [role="tablist"]::before {
-        content: "Sherpas Co-Pilot";
+        content: "Sherpas";
         position: absolute;
         left: max(24px, calc(50vw - 500px + 16px));   /* lines up with the content column */
         top: 50%;
         transform: translateY(-50%);
-        padding-left: 22px;
-        font-weight: 600;
+        font-family: var(--serif);
+        font-size: 1.28rem;
+        font-weight: 500;
         letter-spacing: -0.01em;
         color: var(--text);
-        background: radial-gradient(circle, var(--accent) 0 4.5px, transparent 5.5px)
-                    no-repeat left center / 12px 12px;
     }
     @media (max-width: 760px) {
         [role="tablist"]::before { display: none; }   /* not enough room on phones */
@@ -121,31 +143,21 @@ style = """
         content: none !important;
         display: none !important;
     }
-    /* Each tab: quiet by default, raised pill when active */
+    /* Each tab: plain text; the active one gets a line under it */
     [role="tab"] {
         background: transparent !important;
-        border: 1px solid transparent !important;
-        border-radius: 10px !important;
-        padding: 7px 18px !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0 !important;
+        padding: 8px 16px !important;
+        margin: 0 4px !important;
         font-weight: 500 !important;
-        transition: background 0.2s ease, border-color 0.2s ease;
+        transition: border-color 0.15s ease;
     }
-    [role="tab"], [role="tab"] * {
-        color: var(--muted) !important;
-    }
-    [role="tab"]:hover {
-        background: var(--surface) !important;
-    }
-    [role="tab"]:hover, [role="tab"]:hover * {
-        color: var(--text) !important;
-    }
-    [role="tab"][aria-selected="true"] {
-        background: var(--surface-2) !important;
-        border-color: var(--border-strong) !important;
-    }
-    [role="tab"][aria-selected="true"], [role="tab"][aria-selected="true"] * {
-        color: var(--text) !important;
-    }
+    [role="tab"], [role="tab"] * { color: var(--muted) !important; }
+    [role="tab"]:hover, [role="tab"]:hover * { color: var(--text) !important; }
+    [role="tab"][aria-selected="true"] { border-bottom-color: var(--text) !important; }
+    [role="tab"][aria-selected="true"], [role="tab"][aria-selected="true"] * { color: var(--text) !important; }
     /* Remove the colored underline Streamlit draws under the active tab */
     .react-aria-SelectionIndicator,
     [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] {
@@ -162,42 +174,37 @@ style = """
 
     /* ---- Page heading (Vertical tab) ---- */
     .page-title {
-        font-size: 1.9rem;
-        font-weight: 650;
-        letter-spacing: -0.03em;
-        line-height: 1.2;
+        font-family: var(--serif);
+        font-size: 2.1rem;
+        font-weight: 500;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
     }
     .page-sub {
         color: var(--muted) !important;
         margin: 6px 0 26px 0;
     }
 
-    /* ---- Cards ---- */
+    /* ---- Cards: flat, one hairline, no shadow, no lift ---- */
     [data-testid="stVerticalBlock"]:has(> .element-container .box-marker) {
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        padding: 18px 20px !important;
-        margin-bottom: 12px;                  /* space between cards */
-        gap: 0.35rem !important;              /* space between title and text */
-        /* faint top highlight + soft drop shadow = a bit of depth */
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
-                    0 10px 30px -14px rgba(0, 0, 0, 0.7);
-        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 10px !important;
+        padding: 16px 18px !important;
+        margin-bottom: 10px;
+        gap: 0.35rem !important;
+        transition: border-color 0.15s ease;
     }
-    /* On hover: slight lift, stronger outline, deeper shadow */
     [data-testid="stVerticalBlock"]:has(> .element-container .box-marker):hover {
         border-color: var(--border-strong) !important;
-        transform: translateY(-1px);
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
-                    0 18px 40px -16px rgba(0, 0, 0, 0.85);
     }
     .card-title {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 1.05rem;
-        font-weight: 600;
+        font-family: var(--serif);
+        font-size: 1.2rem;
+        font-weight: 500;
         letter-spacing: -0.01em;
     }
     .card-desc {
@@ -210,13 +217,10 @@ style = """
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 2px 10px;
-        font-size: 0.72rem;
+        padding: 0;
+        font-size: 0.8rem;
         font-weight: 500;
         color: var(--muted) !important;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border);
-        border-radius: 999px;
     }
     .tag::before {
         content: "";
@@ -241,7 +245,7 @@ style = """
         padding: 0;
         background: transparent !important;
         border: 1px solid transparent !important;
-        border-radius: 10px !important;
+        border-radius: 6px !important;
     }
     [data-testid="stVerticalBlock"]:has(> .element-container .box-marker) [data-testid="stButton"] button,
     [data-testid="stVerticalBlock"]:has(> .element-container .box-marker) [data-testid="stButton"] button * {
@@ -259,15 +263,17 @@ style = """
     [data-testid="stButton"] button {
         background: var(--surface) !important;
         border: 1px solid var(--border-strong) !important;
-        border-radius: 10px !important;
-        min-height: 2.2rem;
-        transition: background 0.2s ease, border-color 0.2s ease;
+        border-radius: 6px !important;
+        min-height: 2.3rem;
+        font-weight: 500;
+        transition: background 0.15s ease, border-color 0.15s ease;
     }
     [data-testid="stButton"] button, [data-testid="stButton"] button * {
         color: var(--text) !important;
     }
     [data-testid="stButton"] button:hover {
         background: var(--surface-2) !important;
+        border-color: var(--text) !important;
     }
     /* Don't let Streamlit's ellipsis container clip button text */
     [data-testid="stButton"] button [data-testid="stMarkdownContainer"] {
@@ -297,7 +303,7 @@ style = """
         background: transparent !important;
         border: none !important;
         padding: 10px 0 !important;
-        animation: fadeUp 0.3s ease backwards;
+        animation: none;
     }
     /* Your messages: right-aligned bubble, no avatar */
     [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {
@@ -307,22 +313,19 @@ style = """
         max-width: 80%;
         background: var(--surface-2) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 18px 18px 6px 18px !important;
+        border-radius: 10px !important;
         padding: 10px 16px !important;
         margin: 6px 0;
     }
     [data-testid="stChatMessageAvatarUser"] {
         display: none !important;
     }
-    /* Reply avatar: small rounded square in the accent color */
-    [data-testid="stChatMessageAvatarAssistant"] {
-        background: var(--accent) !important;
-        border-radius: 8px !important;
-    }
-    [data-testid="stChatMessageAvatarAssistant"],
-    [data-testid="stChatMessageAvatarAssistant"] * {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+    /* Replies: no avatar, just text. A short rule on the left tells them apart from your messages */
+    [data-testid="stChatMessageAvatarAssistant"] { display: none !important; }
+    [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) {
+        border-left: 2px solid var(--border-strong) !important;
+        padding: 4px 0 4px 16px !important;
+        margin: 8px 0;
     }
 
     /* ---- Chat empty state: heading + suggestion chips ---- */
@@ -330,9 +333,10 @@ style = """
         color: var(--text) !important;
         margin-top: 9vh;
         text-align: center;
-        font-size: 2rem;
-        font-weight: 650;
-        letter-spacing: -0.03em;
+        font-family: var(--serif);
+        font-size: 2.4rem;
+        font-weight: 500;
+        letter-spacing: -0.02em;
     }
     .empty-sub {
         text-align: center;
@@ -345,7 +349,9 @@ style = """
         padding: 12px 16px;
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 14px !important;
+        border-radius: 10px !important;
+        justify-content: flex-start;
+        text-align: left;
     }
     [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button,
     [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button * {
@@ -374,7 +380,7 @@ style = """
     }
     /* Strip behind the input: fades from transparent into the page color */
     [data-testid="stBottom"], [data-testid="stBottom"] > div {
-        background: linear-gradient(to top, var(--bg) 55%, transparent) !important;
+        background: var(--bg) !important;
     }
     /* The outer element is just a holder, centered and capped at 760px */
     [data-testid="stChatInput"] {
@@ -387,14 +393,14 @@ style = """
     [data-testid="stChatInput"] > div {
         background: var(--surface) !important;
         border: 1px solid var(--border-strong) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.8);
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 10px !important;
+        box-shadow: none !important;
+        transition: border-color 0.15s ease;
     }
-    /* While typing: accent outline with a soft glow */
+    /* While typing: lighter outline, no glow */
     [data-testid="stChatInput"] > div:focus-within {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px var(--accent-soft), 0 12px 40px -12px rgba(0, 0, 0, 0.8) !important;
+        box-shadow: none !important;
     }
     [data-testid="stChatInput"] textarea {
         color: var(--text) !important;
@@ -407,40 +413,45 @@ style = """
     /* Send button: accent color with a white arrow */
     [data-testid="stChatInputSubmitButton"] {
         background: var(--accent) !important;
-        border-radius: 10px !important;
+        border-radius: 6px !important;
     }
     [data-testid="stChatInputSubmitButton"], [data-testid="stChatInputSubmitButton"] svg {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+        color: #0e1311 !important;
+        fill: #0e1311 !important;
     }
     /* Send button while the input is empty: dim and neutral */
     [data-testid="stChatInputSubmitButton"]:disabled {
-        background: rgba(255, 255, 255, 0.08) !important;
+        background: var(--surface-2) !important;
     }
     [data-testid="stChatInputSubmitButton"]:disabled, [data-testid="stChatInputSubmitButton"]:disabled svg {
         color: var(--muted) !important;
         fill: var(--muted) !important;
     }
 
-    /* ---- Additions for the merged app: user strip, KPI pills, dialogs, progress ---- */
+    /* ---- User strip, figures, dialogs, progress ---- */
     .user-chip, .user-chip strong { color: var(--text) !important; }
-    .user-chip { display: flex; align-items: center; gap: 10px; padding-top: 6px; flex-wrap: wrap; }
-    .user-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); display: inline-block; }
-    .user-meta { color: var(--muted) !important; font-size: 0.86rem; }
-    .kpi-pill {
-        display: flex; flex-direction: column; gap: 2px;
-        background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-        padding: 10px 14px; font-size: 0.8rem; color: var(--muted);
-    }
-    .kpi-pill strong { font-size: 1.25rem; color: var(--text); letter-spacing: -0.02em; }
-    [data-testid="stExpander"] { margin-top: 12px; }
+    .user-chip { display: flex; align-items: baseline; gap: 12px; padding-top: 4px; flex-wrap: wrap; }
+    .user-chip strong { font-family: var(--serif); font-size: 1.35rem; font-weight: 500; letter-spacing: -0.01em; }
+    .user-meta { color: var(--muted) !important; font-size: 0.88rem; }
+
+    /* Figures: big serif numbers separated by hairlines (they are a row of facts, not cards) */
+    .figures { display: flex; flex-wrap: wrap; margin: 4px 0 8px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .figure { flex: 1 1 140px; padding: 16px 20px 16px 0; margin-right: 20px; border-right: 1px solid var(--border); }
+    .figure:last-child { border-right: none; margin-right: 0; }
+    .figure-label { color: var(--muted) !important; font-size: 0.86rem; }
+    .figure-value { font-family: var(--serif); font-size: 2rem; font-weight: 500; line-height: 1.15; letter-spacing: -0.02em; margin-top: 2px; }
+    .figure-value.neg { color: var(--bad) !important; }
+    .figure-value.pos { color: var(--good) !important; }
+
+    [data-testid="stExpander"] { margin-top: 10px; }
     [data-testid="stExpander"] details {
-        background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: 14px !important;
+        background: transparent !important; border: 1px solid var(--border) !important; border-radius: 10px !important;
     }
+    [data-testid="stExpander"] summary p { font-weight: 500; }
     [data-testid="stProgress"] > div > div > div { background-color: var(--accent) !important; }
     [data-testid="stPopover"] button, [data-testid="stFormSubmitButton"] button {
         background: var(--surface) !important; border: 1px solid var(--border-strong) !important;
-        border-radius: 10px !important;
+        border-radius: 6px !important;
     }
     [data-testid="stPopover"] button, [data-testid="stPopover"] button *,
     [data-testid="stFormSubmitButton"] button, [data-testid="stFormSubmitButton"] button * {
@@ -448,12 +459,38 @@ style = """
     }
     [data-testid="stDialog"] [role="dialog"] {
         background: var(--surface) !important; border: 1px solid var(--border-strong) !important;
-        border-radius: 18px !important;
+        border-radius: 10px !important;
     }
+    [data-testid="stDialog"] h2, [data-testid="stDialog"] h2 * {
+        font-family: var(--serif) !important; font-weight: 500 !important; letter-spacing: -0.01em;
+    }
+    [data-testid="stDialog"] blockquote {
+        border-left: 2px solid var(--border-strong); margin: 12px 0; padding: 2px 0 2px 14px;
+        font-family: var(--serif); font-size: 1.15rem;
+    }
+    [data-testid="stDialog"] { background: rgba(5, 8, 7, 0.8) !important; }
+    [data-testid="stDialog"] blockquote p { color: var(--text) !important; opacity: 1 !important; font-family: var(--serif); font-size: 1.2rem; line-height: 1.4; }
+    /* Login / suggestion rows: text starts at the left */
+    [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button [data-testid="stMarkdownContainer"] {
+        justify-content: flex-start;
+    }
+    [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button > div {
+        justify-content: flex-start !important; width: 100%;
+    }
+    [data-testid="stVerticalBlock"]:has(> .element-container .empty-marker) [data-testid="stButton"] button { min-height: 3.6rem; padding-left: 20px; }
+    /* Listen buttons under chat replies: quiet text buttons */
+    [data-testid="stChatMessage"] [data-testid="stButton"] button {
+        background: transparent !important; border-color: transparent !important; min-height: 1.9rem; padding: 0 8px 0 0 !important;
+    }
+    [data-testid="stChatMessage"] [data-testid="stButton"] button, [data-testid="stChatMessage"] [data-testid="stButton"] button * { color: var(--muted) !important; }
+    [data-testid="stChatMessage"] [data-testid="stButton"] button:hover, [data-testid="stChatMessage"] [data-testid="stButton"] button:hover * { color: var(--text) !important; background: transparent !important; }
+    /* Material icons inside buttons keep their own font */
+    [data-testid="stIconMaterial"] { font-family: 'Material Symbols Rounded' !important; }
     @media (max-width: 760px) {
-        [role="tab"] { padding: 7px 10px !important; font-size: 0.85rem !important; }
-        .kpi-pill strong { font-size: 1.05rem; }
-        .empty-title { font-size: 1.5rem; }
+        [role="tab"] { padding: 7px 8px !important; margin: 0 !important; font-size: 0.88rem !important; }
+        .figure-value { font-size: 1.5rem; }
+        .figure { flex-basis: 45%; margin-right: 12px; padding-right: 12px; }
+        .empty-title { font-size: 1.7rem; }
     }
     </style>
-    """
+""".replace("%FONTS%", FONT_CSS)

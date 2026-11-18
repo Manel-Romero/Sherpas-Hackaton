@@ -5,7 +5,7 @@ Fuentes (las mismas que usa el Co-Pilot, en cases/<caso>/):
     financial-health.json score, pilares, "top moves", flujo de caja, patrimonio y la narrativa (summary_main).
 
 Prioridad de contenido:
-  1. Lo que generó "🚀 Cargar plan" (data/cases/<usuario>/summary.json): resumen ejecutivo, titular,
+  1. Lo que generó "Cargar plan" (data/cases/<usuario>/summary.json): resumen ejecutivo, titular,
      primera acción y tareas. Lo escribe el Co-Pilot a partir de persona.md y del informe; aquí no se reescribe.
   2. Si el plan aún no se ha cargado: un resumen mínimo con el score, la persona (D5/D6) y las cifras del
      informe, sin llamar a ningún modelo (gratis).
@@ -206,7 +206,7 @@ def steps(user_id: str) -> list[dict]:
         intro.append(ANCHOR_TEXT[p["anchor"]])
     if p["style"]:
         intro.append(STYLE_TEXT[p["style"]])
-    out.append({"icon": "👋", "title": f"Bienvenido, {name}", "body": "\n\n".join(intro)})
+    out.append({"title": f"Bienvenido, {name}", "body": "\n\n".join(intro)})
 
     plan = workspaces.load_plan_summary(user_id)
     if plan and plan.get("headline"):
@@ -216,7 +216,7 @@ def steps(user_id: str) -> list[dict]:
     if plan and plan.get("executive_summary"):
         full = plan["executive_summary"].strip()
         short = condense(full)
-        out.append({"icon": "🧭", "title": "Tu resumen", "body": short,
+        out.append({"title": "Tu resumen", "body": short,
                     "more": full if len(short) < len(full) else "",
                     "speech": (plan.get("headline", "") + ". " + short)})
     else:
@@ -233,9 +233,9 @@ def steps(user_id: str) -> list[dict]:
         if p["retirement_age"]:
             y = p["years_to_retirement"]
             facts.append(f"- Objetivo: jubilarte a los **{p['retirement_age']}**" + (f" (dentro de {y} años)." if y else "."))
-        out.append({"icon": "🧭", "title": "Dónde estás hoy",
+        out.append({"title": "Dónde estás hoy",
                     "body": "Esto es lo que dice tu informe:\n\n" + "\n".join(facts)
-                            + "\n\nCuando pulses **🚀 Cargar plan**, el Co-Pilot lo convierte en un resumen y un plan a tu medida, "
+                            + "\n\nCuando pulses **Cargar plan**, el Co-Pilot lo convierte en un resumen y un plan a tu medida, "
                               "y este tutorial lo mostrará aquí."})
 
     # 3) Plan de acción
@@ -251,7 +251,7 @@ def steps(user_id: str) -> list[dict]:
             lines.append("\nDespués, en tu tablero:\n")
             lines += [f"- {t['title']}" + (f" ({t['impact']})" if t.get("impact") else "") for t in tasks]
         lines.append("\n**Arrastra** una tarjeta entre *To do*, *In process* y *Done*, o haz clic para ver los pasos.")
-        out.append({"icon": "📋", "title": "Tu plan de acción", "body": "\n".join(lines)})
+        out.append({"title": "Tu plan de acción", "body": "\n".join(lines)})
     else:
         lines = ["Es un tablero con tus tareas, empezando por la más urgente. Las que más mueven tu score:\n"]
         for m in p["moves"][:3]:
@@ -259,7 +259,7 @@ def steps(user_id: str) -> list[dict]:
             gain = f" ({a} → {b})" if a is not None and b is not None and b != a else ""
             lines.append(f"- {_move(m).capitalize()}{gain}")
         lines.append("\n**Arrastra** una tarjeta entre *To do*, *In process* y *Done*, o haz clic para ver el detalle.")
-        out.append({"icon": "📋", "title": "Tu plan de acción", "body": "\n".join(lines)})
+        out.append({"title": "Tu plan de acción", "body": "\n".join(lines)})
 
     # 4) Proyección y datos
     ret_txt = (f" hasta tu jubilación a los {p['retirement_age']}" if p["retirement_age"] else "")
@@ -271,33 +271,33 @@ def steps(user_id: str) -> list[dict]:
         body += "- Empieza por la columna de gastos: es donde está tu margen para volver a números positivos."
     elif p["weakest"]:
         body += f"- Prueba a cambiar el ahorro mensual y mira cómo se mueve el gráfico; tu hueco principal es {_pillar(p['weakest'])}."
-    out.append({"icon": "📊", "title": "Proyección y datos", "body": body})
+    out.append({"title": "Proyección y datos", "body": body})
 
     # 5) Chat con ejemplos propios
     ex = suggestions(user_id)
-    out.append({"icon": "💬", "title": "Pregunta al Co-Pilot",
+    out.append({"title": "Pregunta al Co-Pilot",
                 "body": "Conoce tu caso y puede **cambiar la tabla y las tareas por ti**. Con tus palabras, por ejemplo:\n\n"
                         + "\n".join(f"- *«{t}»*" for _, t in ex[:3])
-                        + "\n\nCada respuesta tiene un botón **🔊** para escucharla."})
+                        + "\n\nCada respuesta tiene un botón **Escuchar** para escucharla."})
 
     # 6) Pareja / usuarios
     if p["is_copy"]:
         src = workspaces.get_user(p["copied_from"] or "")
         origin = f" de **{src['label']}**" if src else ""
-        out.append({"icon": "👥", "title": "Tu propia copia",
+        out.append({"title": "Tu propia copia",
                     "body": f"Estás en tu copia del plan{origin}. Empezó igual que el original y ahora es tuya: "
                             "lo que cambies aquí no afecta a nadie más. Tus datos de partida (patrimonio, deudas, objetivos) "
                             f"siguen siendo los del hogar, así que el informe de arriba es el de {p['label'] if not who else 'vuestro hogar'}."})
     elif who:
-        out.append({"icon": "👥", "title": f"{name} y {who}",
-                    "body": f"Cada uno puede tener **su propio usuario**. Con **👥 Usuarios** crea el de {who} "
+        out.append({"title": f"{name} y {who}",
+                    "body": f"Cada uno puede tener **su propio usuario**. Con **Usuarios** crea el de {who} "
                             "**copiando tus datos**: empieza igual y luego lo personaliza sin tocar el tuyo."})
     else:
-        out.append({"icon": "👥", "title": "Si alguien más se une",
-                    "body": "Con **👥 Usuarios** puedes crear otro usuario **copiando tus datos** (una pareja, un asesor…). "
+        out.append({"title": "Si alguien más se une",
+                    "body": "Con **Usuarios** puedes crear otro usuario **copiando tus datos** (una pareja, un asesor…). "
                             "Cada uno edita lo suyo sin afectar al otro."})
     if not plan:
-        out[-1]["body"] += "\n\nPara empezar, pulsa **🚀 Cargar plan** y el Co-Pilot lo genera."
+        out[-1]["body"] += "\n\nPara empezar, pulsa **Cargar plan** y el Co-Pilot lo genera."
     return out
 
 
@@ -306,38 +306,38 @@ def suggestions(user_id: str) -> list[tuple[str, str]]:
     p = profile(user_id)
     if not p["has_data"] or p["score"] is None:
         return []
-    out = [("🔍 Explícame mi score",
+    out = [("Explícame mi score",
             "Explícame mi score de salud financiera y cuál es mi principal cuello de botella, sin tecnicismos.")]
     plan = workspaces.load_plan_summary(user_id)
     first_task = ((plan or {}).get("immediate_action") or {}).get("title")
     if first_task:
-        out.append(("🎯 Mi primera acción",
+        out.append(("Mi primera acción",
                     f"Explícame con detalle «{first_task}»: por qué es lo primero y qué pasos concretos tengo que dar hoy."))
     elif p["moves"]:
         m = p["moves"][0]
-        out.append((f"🎯 Mi primera palanca",
+        out.append(("Mi primera palanca",
                     f"Explícame con detalle cómo «{_move(m)}» mejora mi score y qué pasos concretos tengo que dar. "
                     "Si procede, añádelo a mis tareas."))
     if p["weakest"]:
-        out.append((f"🧩 Mejorar {_pillar(p['weakest'])}",
+        out.append(("Mejorar {_pillar(p['weakest'])}",
                     f"Mi área más floja es {_pillar(p['weakest'])}. ¿Qué haría yo primero y qué cambiarías en mi tabla?"))
-    out.append(("💰 Me dan un bonus de 15.000 $",
+    out.append(("Me dan un bonus de 15.000 $",
                 "Voy a recibir un bonus de 15.000 $. ¿Qué hago con él? Aplica los cambios que recomiendes en mi tabla."))
     return out[:4]
 
 
 GENERIC_STEPS = [
-    {"icon": "👋", "title": "Bienvenido a tu plan",
+    {"title": "Bienvenido a tu plan",
      "body": "Aquí tu plan financiero deja de ser un documento largo y se convierte en algo que puedes "
              "**mover, probar y preguntar**. En un minuto te enseñamos las tres pestañas."},
-    {"icon": "📋", "title": "Plan de acción",
+    {"title": "Plan de acción",
      "body": "Un tablero con las tareas del plan. **Arrastra** las tarjetas entre *To do*, *In process* y *Done*."},
-    {"icon": "📊", "title": "Proyección y datos",
+    {"title": "Proyección y datos",
      "body": "Edita cualquier celda de la tabla y el gráfico se actualiza."},
-    {"icon": "💬", "title": "Pregunta al Co-Pilot",
+    {"title": "Pregunta al Co-Pilot",
      "body": "Pregunta con tus palabras; puede **cambiar la tabla y las tareas por ti**. "
-             "Cada respuesta tiene un botón **🔊** para escucharla."},
-    {"icon": "👥", "title": "Usuarios",
-     "body": "Con **👥 Usuarios** puedes crear otro usuario copiando los datos de este. "
-             "Si el plan está vacío, pulsa **🚀 Cargar plan**."},
+             "Cada respuesta tiene un botón **Escuchar** para escucharla."},
+    {"title": "Usuarios",
+     "body": "Con **Usuarios** puedes crear otro usuario copiando los datos de este. "
+             "Si el plan está vacío, pulsa **Cargar plan**."},
 ]

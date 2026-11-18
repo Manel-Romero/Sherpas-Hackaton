@@ -10,377 +10,119 @@ import streamlit.components.v1 as components
 
 import kanban_store as ks
 
+try:                                    # same embedded fonts as the rest of the app
+    from frontend.style import FONT_CSS
+except Exception:                       # pragma: no cover - fonts are optional
+    FONT_CSS = ""
+
 BOARD_HTML = r"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
+  /*FONTS*/
   :root {
-    --surface: #111318;
-    --surface-2: #181b23;
-    --surface-3: #202430;
-    --border: rgba(255,255,255,0.08);
-    --border-strong: rgba(255,255,255,0.18);
-    --text: #f4f5f7;
-    --muted: rgba(244,245,247,0.82);
-    --accent: #4f8cff;
-    --green-bg: rgba(34, 197, 94, 0.12);
-    --green-border: rgba(34, 197, 94, 0.32);
-    --green-text: #4ade80;
+    --surface: #151c19;
+    --surface-2: #1d2622;
+    --surface-3: #232d29;
+    --border: rgba(222,236,228,0.11);
+    --border-strong: rgba(222,236,228,0.26);
+    --text: #eef3ef;
+    --muted: #b6c3bb;
+    --accent: #d6e6dc;
+    --good: #86c9a4;
+    --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     background: transparent;
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    font-family: var(--sans);
+    font-feature-settings: "tnum" 1, "kern" 1;
   }
-  .board {
-    display: grid;
-    gap: 14px;
-    padding: 4px 2px 14px;
-    align-items: start;
-  }
-  @media (max-width: 640px) {
-    .board { grid-template-columns: 1fr !important; }
-  }
-  .column {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px;
-  }
+  .board { display: grid; gap: 14px; padding: 4px 2px 14px; align-items: start; }
+  @media (max-width: 640px) { .board { grid-template-columns: 1fr !important; } }
+
+  .column { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
   .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 600;
-    padding: 2px 4px 10px;
-    font-size: 0.94rem;
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 2px 4px 10px; font-family: var(--serif); font-weight: 500; font-size: 1.15rem; letter-spacing: -0.01em;
   }
-  .count {
-    color: var(--muted);
-    font-size: 0.8rem;
-    font-weight: 600;
-    background: var(--surface-2);
-    padding: 2px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-  }
-  .body {
-    min-height: 80px;
-    border-radius: 10px;
-    padding: 2px;
-  }
-  .body.over {
-    outline: 1px dashed var(--accent);
-  }
+  .count { color: var(--muted); font-family: var(--sans); font-size: 0.85rem; font-weight: 500; }
+  .body { min-height: 80px; border-radius: 8px; padding: 2px; }
+  .body.over { outline: 1px dashed var(--accent); }
 
-  /* Tarjeta estructurada en columna */
+  /* Card: flat, one hairline. Only the border changes on hover. */
   .card {
-    position: relative;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    position: relative; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s ease;
   }
-  .card:hover {
-    border-color: var(--border-strong);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.28);
-    transform: translateY(-1px);
-  }
-  .card.dragging {
-    opacity: 0.35;
-    cursor: grabbing;
-  }
+  .card:hover { border-color: var(--border-strong); }
+  .card.dragging { opacity: 0.35; cursor: grabbing; }
 
-  /* Fila superior de badges y boton eliminar */
-  .card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
-  }
-  .badges-row {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-    max-width: calc(100% - 28px);
-  }
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    line-height: 1.3;
-  }
-  .badge-category {
-    border: 1px solid transparent;
-  }
-  .badge-impact {
-    background: var(--green-bg);
-    border: 1px solid var(--green-border);
-    color: var(--green-text);
-  }
-  .badge-week {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
-    color: var(--muted);
-  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .badges-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; max-width: calc(100% - 28px); }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; line-height: 1.3; color: var(--muted); }
+  /* The category is a coloured dot + its name (colour comes from CAT_STYLES) */
+  .badge-category::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .badge-impact { color: var(--good); font-weight: 600; }
+  .badge-week { color: var(--muted); }
 
   .x {
-    width: 22px;
-    height: 22px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+    width: 22px; height: 22px; border: none; border-radius: 4px; background: transparent; color: var(--muted);
+    font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
   }
-  .x:hover {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
-  }
+  .x:hover { background: var(--surface-3); color: #e58a78; }
 
-  /* Titulo y texto breve en la tarjeta */
-  .title {
-    font-weight: 600;
-    font-size: 0.94rem;
-    color: #f4f5f7;
-    line-height: 1.35;
-    margin-bottom: 6px;
-    overflow-wrap: anywhere;
-  }
-  .short-desc {
-    color: var(--muted);
-    font-size: 0.84rem;
-    line-height: 1.45;
-    margin-bottom: 8px;
-    overflow-wrap: anywhere;
-  }
+  .title { font-weight: 600; font-size: 0.98rem; color: var(--text); line-height: 1.35; margin-bottom: 6px; overflow-wrap: anywhere; }
+  .short-desc { color: var(--muted); font-size: 0.86rem; line-height: 1.5; margin-bottom: 8px; overflow-wrap: anywhere; }
 
-  /* Pie de tarjeta con boton ver detalle */
-  .card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 6px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-  }
+  .card-footer { display: flex; justify-content: flex-end; align-items: center; padding-top: 6px; }
   .modal-open-btn {
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.22);
-    color: var(--accent);
-    font-size: 0.76rem;
-    font-weight: 600;
-    border-radius: 6px;
-    padding: 4px 10px;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    background: transparent; border: none; color: var(--text); font-family: var(--sans); font-size: 0.82rem; font-weight: 600;
+    padding: 2px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--border-strong);
   }
-  .modal-open-btn:hover {
-    background: rgba(79, 140, 255, 0.22);
-    border-color: var(--accent);
-    color: #fff;
-  }
+  .modal-open-btn:hover { text-decoration-color: var(--text); }
 
-  /* MODAL CENTRADO EN LA PANTALLA */
+  /* Detail dialog, centred on screen */
   .modal-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.78);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 99999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 18px;
-    box-sizing: border-box;
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh;
+    background: rgba(5, 8, 7, 0.78); z-index: 99999; display: none; align-items: center; justify-content: center;
+    padding: 18px; box-sizing: border-box;
   }
-  .modal-overlay.open {
-    display: flex !important;
-  }
+  .modal-overlay.open { display: flex !important; }
   .modal-dialog {
-    background: #181b23;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 18px;
-    width: 100%;
-    max-width: 580px;
-    max-height: 88vh;
-    overflow-y: auto;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.82), 0 0 1px 1px rgba(255, 255, 255, 0.1);
-    padding: 24px 28px;
-    position: relative;
-    box-sizing: border-box;
-    animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; width: 100%; max-width: 580px;
+    max-height: 88vh; overflow-y: auto; padding: 24px 28px; position: relative; box-sizing: border-box;
   }
-  @keyframes modalPop {
-    from { transform: scale(0.92) translateY(8px); opacity: 0; }
-    to { transform: scale(1) translateY(0); opacity: 1; }
-  }
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .modal-badges {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .modal-badges { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
   .modal-close-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--muted);
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
+    width: 32px; height: 32px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted);
+    font-size: 22px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  .modal-close-btn:hover {
-    background: rgba(239, 68, 68, 0.25);
-    color: #ef4444;
+  .modal-close-btn:hover { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+  .modal-title { font-family: var(--serif); font-size: 1.7rem; font-weight: 500; letter-spacing: -0.015em; color: var(--text); line-height: 1.2; margin-bottom: 16px; overflow-wrap: anywhere; }
+  .modal-section-box { border-left: 2px solid var(--border-strong); padding: 2px 0 2px 14px; margin-bottom: 16px; }
+  .modal-subtitle { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .modal-short-desc { font-size: 0.95rem; color: var(--text); line-height: 1.5; }
+  .modal-detailed-desc { font-size: 0.92rem; color: var(--text); line-height: 1.6; margin-bottom: 14px; white-space: pre-wrap; }
+  .modal-steps-list { margin: 6px 0 16px 20px; padding: 0; }
+  .modal-steps-list li { font-size: 0.9rem; color: var(--text); line-height: 1.55; margin-bottom: 6px; }
+  .modal-meta-grid { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 18px; padding: 0; }
+  .meta-pill { font-size: 0.8rem; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; color: var(--muted); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding-top: 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .btn-action-primary, .btn-action-secondary, .btn-action-close {
+    font-family: var(--sans); font-size: 0.88rem; padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
   }
-  .modal-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #f4f5f7;
-    line-height: 1.35;
-    margin-bottom: 14px;
-    overflow-wrap: anywhere;
-  }
-  .modal-section-box {
-    background: rgba(79, 140, 255, 0.08);
-    border: 1px solid rgba(79, 140, 255, 0.22);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
-  }
-  .modal-subtitle {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--muted);
-    letter-spacing: 0.05em;
-    margin-bottom: 6px;
-  }
-  .modal-short-desc {
-    font-size: 0.9rem;
-    color: #f4f5f7;
-    line-height: 1.45;
-  }
-  .modal-detailed-desc {
-    font-size: 0.88rem;
-    color: #e2e8f0;
-    line-height: 1.55;
-    margin-bottom: 14px;
-    white-space: pre-wrap;
-  }
-  .modal-steps-list {
-    margin: 6px 0 16px 20px;
-    padding: 0;
-  }
-  .modal-steps-list li {
-    font-size: 0.86rem;
-    color: var(--text);
-    line-height: 1.5;
-    margin-bottom: 6px;
-  }
-  .modal-meta-grid {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 14px 0 18px;
-    padding: 10px 12px;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  .meta-pill {
-    font-size: 0.74rem;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 3px 8px;
-    color: var(--muted);
-  }
-  .modal-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    align-items: center;
-    padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    flex-wrap: wrap;
-  }
-  .btn-action-primary {
-    background: #22c55e;
-    color: #0b1e10;
-    font-weight: 700;
-    font-size: 0.84rem;
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .btn-action-primary:hover {
-    background: #16a34a;
-    color: #fff;
-  }
-  .btn-action-secondary {
-    background: rgba(79, 140, 255, 0.18);
-    color: #93c5fd;
-    font-weight: 600;
-    font-size: 0.84rem;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid rgba(79, 140, 255, 0.35);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .btn-action-secondary:hover {
-    background: rgba(79, 140, 255, 0.3);
-    color: #fff;
-  }
-  .btn-action-close {
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--muted);
-    font-weight: 500;
-    font-size: 0.84rem;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .btn-action-close:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--text);
-  }
+  .btn-action-primary { background: var(--accent); color: #0e1311; font-weight: 600; border: 1px solid var(--accent); }
+  .btn-action-primary:hover { background: #fff; border-color: #fff; }
+  .btn-action-secondary { background: transparent; color: var(--text); font-weight: 500; border: 1px solid var(--border-strong); }
+  .btn-action-secondary:hover { border-color: var(--text); }
+  .btn-action-close { background: transparent; color: var(--muted); font-weight: 500; border: 1px solid var(--border); }
+  .btn-action-close:hover { color: var(--text); border-color: var(--border-strong); }
 </style>
 </head>
 <body>
@@ -391,31 +133,31 @@ BOARD_HTML = r"""<!DOCTYPE html>
   <div class="modal-dialog">
     <div class="modal-header">
       <div class="modal-badges" id="modalBadges"></div>
-      <button class="modal-close-btn" id="modalCloseBtn" title="Cerrar">✕</button>
+      <button class="modal-close-btn" id="modalCloseBtn" title="Cerrar">×</button>
     </div>
     
     <div class="modal-title" id="modalTitle"></div>
     
     <div class="modal-section-box">
-      <div class="modal-subtitle">RESUMEN EJECUTIVO (BREVE)</div>
+      <div class="modal-subtitle">Resumen</div>
       <div class="modal-short-desc" id="modalShortDesc"></div>
     </div>
 
     <div class="modal-body-section" id="modalDescSection">
-      <div class="modal-subtitle">EXPLICACION Y CONTEXTO FINANCIERO EXTENDIDO</div>
+      <div class="modal-subtitle">Explicación y contexto</div>
       <div class="modal-detailed-desc" id="modalDetailedDesc"></div>
     </div>
 
     <div class="modal-body-section" id="modalStepsSection">
-      <div class="modal-subtitle">PASOS RECOMENDADOS DE EJECUCION</div>
+      <div class="modal-subtitle">Pasos recomendados</div>
       <ol class="modal-steps-list" id="modalStepsList"></ol>
     </div>
 
     <div class="modal-meta-grid" id="modalMetaGrid"></div>
 
     <div class="modal-actions" id="modalActions">
-      <button class="btn-action-secondary" id="modalMoveBtn">🚀 En proceso</button>
-      <button class="btn-action-primary" id="modalCompleteBtn">✅ Marcar como Completada</button>
+      <button class="btn-action-secondary" id="modalMoveBtn">En proceso</button>
+      <button class="btn-action-primary" id="modalCompleteBtn">Marcar como completada</button>
       <button class="btn-action-close" id="modalFooterCloseBtn">Cerrar</button>
     </div>
   </div>
@@ -428,15 +170,15 @@ let lastArgs = null, lastLayout = "", dragged = null, dropped = false, seq = 0;
 let activeModalCard = null;
 
 const CAT_STYLES = {
-  debt: { label: "Deuda", icon: "💳", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "rgba(245, 158, 11, 0.3)" },
-  savings: { label: "Ahorro", icon: "💰", color: "#10b981", bg: "rgba(16, 185, 129, 0.12)", border: "rgba(16, 185, 129, 0.3)" },
-  investment: { label: "Inversion", icon: "📈", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.12)", border: "rgba(59, 130, 246, 0.3)" },
-  insurance: { label: "Seguros", icon: "🛡️", color: "#06b6d4", bg: "rgba(6, 182, 212, 0.12)", border: "rgba(6, 182, 212, 0.3)" },
-  lifestyle: { label: "Presupuesto", icon: "🌱", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.12)", border: "rgba(139, 92, 246, 0.3)" },
-  immediate: { label: "Prioritaria", icon: "⚡", color: "#22c55e", bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.35)" },
-  goal: { label: "Meta", icon: "🎯", color: "#818cf8", bg: "rgba(99, 102, 241, 0.15)", border: "rgba(99, 102, 241, 0.35)" },
-  alerta: { label: "Alerta", icon: "🚨", color: "#ef4444", bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.35)" },
-  general: { label: "General", icon: "📌", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.12)", border: "rgba(148, 163, 184, 0.25)" }
+  debt:       { label: "Deuda",       color: "#e2b560" },
+  savings:    { label: "Ahorro",      color: "#86c9a4" },
+  investment: { label: "Inversión",   color: "#8fb7d4" },
+  insurance:  { label: "Seguros",     color: "#7fc4c9" },
+  lifestyle:  { label: "Presupuesto", color: "#b9a3d6" },
+  immediate:  { label: "Prioritaria", color: "#eef3ef" },
+  goal:       { label: "Meta",        color: "#9aa8e0" },
+  alerta:     { label: "Alerta",      color: "#e58a78" },
+  general:    { label: "General",     color: "#b6c3bb" }
 };
 
 function post(type, extra) {
@@ -496,17 +238,15 @@ function openCardModal(c) {
   const badgesBox = document.getElementById("modalBadges");
   badgesBox.innerHTML = "";
   
-  const catB = el("span", "badge badge-category", catConf.icon + " " + catConf.label);
+  const catB = el("span", "badge badge-category", catConf.label);
   catB.style.color = catConf.color;
-  catB.style.backgroundColor = catConf.bg;
-  catB.style.borderColor = catConf.border;
   badgesBox.append(catB);
   
   if (c.impact && c.impact.trim()) {
-    badgesBox.append(el("span", "badge badge-impact", "✨ " + c.impact.trim()));
+    badgesBox.append(el("span", "badge badge-impact", c.impact.trim()));
   }
   if (c.week) {
-    badgesBox.append(el("span", "badge badge-week", "📅 Semana " + c.week));
+    badgesBox.append(el("span", "badge badge-week", "Semana " + c.week));
   }
 
   document.getElementById("modalTitle").textContent = c.title || "Tarea";
@@ -529,7 +269,7 @@ function openCardModal(c) {
 
   const metaGrid = document.getElementById("modalMetaGrid");
   metaGrid.innerHTML = "";
-  metaGrid.append(el("span", "meta-pill", "Categoria: " + (catConf.label || c.category)));
+  metaGrid.append(el("span", "meta-pill", "Categoría: " + (catConf.label || c.category)));
   if (c.impact) metaGrid.append(el("span", "meta-pill", "Impacto estimado: " + c.impact));
   if (c.week) metaGrid.append(el("span", "meta-pill", "Semana asignada: " + c.week));
   const stLabel = (c.status === "done" ? "Completada" : (c.status === "in_process" ? "En proceso" : "Por hacer"));
@@ -540,19 +280,19 @@ function openCardModal(c) {
   
   if (c.status === "done") {
     completeBtn.style.display = "none";
-    moveBtn.textContent = "↩️ Mover a Por Hacer";
+    moveBtn.textContent = "Mover a Por hacer";
     moveBtn.onclick = () => { moveCardModal(c.id, "todo"); };
   } else if (c.status === "in_process") {
     completeBtn.style.display = "inline-block";
-    completeBtn.textContent = "✅ Marcar como Completada";
+    completeBtn.textContent = "Marcar como completada";
     completeBtn.onclick = () => { moveCardModal(c.id, "done"); };
-    moveBtn.textContent = "↩️ Mover a Por Hacer";
+    moveBtn.textContent = "Mover a Por hacer";
     moveBtn.onclick = () => { moveCardModal(c.id, "todo"); };
   } else {
     completeBtn.style.display = "inline-block";
-    completeBtn.textContent = "✅ Marcar como Completada";
+    completeBtn.textContent = "Marcar como completada";
     completeBtn.onclick = () => { moveCardModal(c.id, "done"); };
-    moveBtn.textContent = "🚀 Mover a En Proceso";
+    moveBtn.textContent = "Mover a En proceso";
     moveBtn.onclick = () => { moveCardModal(c.id, "in_process"); };
   }
 
@@ -595,23 +335,21 @@ function makeCard(c) {
 
   const catKey = (c.category || "general").toLowerCase();
   const catConf = CAT_STYLES[catKey] || CAT_STYLES.general;
-  const catBadge = el("span", "badge badge-category", catConf.icon + " " + catConf.label);
+  const catBadge = el("span", "badge badge-category", catConf.label);
   catBadge.style.color = catConf.color;
-  catBadge.style.backgroundColor = catConf.bg;
-  catBadge.style.borderColor = catConf.border;
   badgesRow.append(catBadge);
 
   if (c.impact && c.impact.trim()) {
-    const impBadge = el("span", "badge badge-impact", "✨ " + c.impact.trim());
+    const impBadge = el("span", "badge badge-impact", c.impact.trim());
     badgesRow.append(impBadge);
   }
 
   if (c.week) {
-    const weekBadge = el("span", "badge badge-week", "📅 Sem. " + c.week);
+    const weekBadge = el("span", "badge badge-week", "Semana " + c.week);
     badgesRow.append(weekBadge);
   }
 
-  const x = el("button", "x", "✕");
+  const x = el("button", "x", "×");
   x.title = "Eliminar tarea";
   x.addEventListener("click", ev => {
     ev.stopPropagation();
@@ -634,7 +372,7 @@ function makeCard(c) {
 
   // 4. Pie de tarjeta con boton Ver Detalle
   const footer = el("div", "card-footer");
-  const modalBtn = el("button", "modal-open-btn", "🔍 Ver detalle");
+  const modalBtn = el("button", "modal-open-btn", "Ver detalle");
   modalBtn.addEventListener("click", ev => {
     ev.stopPropagation();
     openCardModal(c);
@@ -724,7 +462,7 @@ post("streamlit:componentReady", {apiVersion: 1});
 </script>
 </body>
 </html>
-"""
+""".replace("/*FONTS*/", FONT_CSS)
 
 _FRONTEND = Path(__file__).with_name("kanban_frontend")
 
@@ -757,7 +495,7 @@ def notify_agent_of_kanban_change(
         f"He añadido {title} al plan (impacto: {impact}). "
         f"Explicame con claridad como me recomiendas abordarla y que debo tener en cuenta."
     )
-    st.toast(f"Consultando al Co-Pilot sobre '{title}'...", icon="💬")
+    st.toast(f"Consultando al Co-Pilot sobre '{title}'...", icon=":material/chat:")
 
     try:
         import httpx
@@ -783,28 +521,28 @@ def notify_agent_of_kanban_change(
                 ss.messages.append(msg_obj)
 
                 short_reply = reply[:140] + "..." if len(reply) > 140 else reply
-                st.toast(f"💬 Co-Pilot: {short_reply}", icon="💡")
+                st.toast(f"Co-Pilot: {short_reply}", icon=":material/chat:")
     except Exception:
         pass
 
 
 def _add_card():
-    with st.popover("➕ Añadir tarea estructurada"):
+    with st.popover("Añadir tarea", icon=":material/add:"):
         with st.form("add_card", clear_on_submit=True):
-            title = st.text_input("Titulo de la tarea (accion concreta)")
+            title = st.text_input("Título de la tarea (acción concreta)")
             c_col1, c_col2 = st.columns(2)
             with c_col1:
                 category = st.selectbox(
-                    "Categoria",
+                    "Categoría",
                     ["debt", "savings", "investment", "insurance", "lifestyle", "immediate", "general"],
                     format_func=lambda x: {
-                        "debt": "💳 Deuda",
-                        "savings": "💰 Ahorro",
-                        "investment": "📈 Inversion",
-                        "insurance": "🛡️ Seguros",
-                        "lifestyle": "🌱 Presupuesto",
-                        "immediate": "⚡ Prioritaria",
-                        "general": "📌 General"
+                        "debt": "Deuda",
+                        "savings": "Ahorro",
+                        "investment": "Inversión",
+                        "insurance": "Seguros",
+                        "lifestyle": "Presupuesto",
+                        "immediate": "Prioritaria",
+                        "general": "General"
                     }.get(x, x.capitalize())
                 )
             with c_col2:
@@ -816,8 +554,8 @@ def _add_card():
             with c_sub2:
                 week = st.number_input("Semana (1 a 4)", min_value=1, max_value=4, value=1)
 
-            short_desc = st.text_input("Descripcion breve (1 linea para la vista principal)")
-            detailed_desc = st.text_area("Descripcion detallada y contexto (visible en modal centrado)")
+            short_desc = st.text_input("Descripción breve (una línea para la tarjeta)")
+            detailed_desc = st.text_area("Descripción detallada y contexto")
             steps_text = st.text_area("Pasos recomendados (uno por linea)")
 
             if st.form_submit_button("Guardar tarea") and title.strip():
@@ -862,7 +600,7 @@ def render():
             with c_info:
                 st.info(f"Has añadido la tarea **'{t_title}'**. ¿Quieres hablar con el Co-Pilot sobre ella?")
             with c_action:
-                if st.button("💬 Hablar con el agente", key=f"talk_task_{t_title}"):
+                if st.button("Hablar con el agente", icon=":material/chat:", key=f"talk_task_{t_title}"):
                     del ss.ask_talk_agent
                     notify_agent_of_kanban_change(
                         "add",
@@ -872,7 +610,7 @@ def render():
                     )
                     st.rerun()
             with c_close:
-                if st.button("✕ No", key=f"dismiss_task_{t_title}"):
+                if st.button("No", key=f"dismiss_task_{t_title}"):
                     del ss.ask_talk_agent
                     st.rerun()
 

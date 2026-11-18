@@ -10,18 +10,20 @@ from compat import stretch
 import kanban_store as ks
 import table_store as ts
 
-PALETTE = ["#4f8cff", "#22c55e", "#f59e0b", "#ec4899", "#a855f7",
-           "#06b6d4", "#14b8a6", "#eab308", "#6366f1", "#f97316"]
-GRID = "rgba(255,255,255,0.08)"
+PALETTE = ["#8fb7d4", "#86c9a4", "#e2b560", "#e58a78", "#b9a3d6",
+           "#7fc4c9", "#c9c27f", "#d4a0a8", "#9aa8e0", "#c8a98a"]
+GRID = "rgba(222,236,228,0.10)"
+INK, TEXT = "#0e1311", "#eef3ef"
+WEALTH, DEBT, GOOD, WARN = "#8fb7d4", "#e58a78", "#86c9a4", "#e2b560"
 
 
 def _layout(fig: go.Figure, height: int, **extra) -> None:
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#f4f5f7", family="Inter"),
+        font=dict(color=TEXT, family="Hanken Grotesk, sans-serif", size=13),
         margin=dict(l=10, r=10, t=30, b=10), height=height,
-        xaxis=dict(showgrid=True, gridcolor=GRID, automargin=True, tickfont=dict(color="#f4f5f7")),
-        yaxis=dict(showgrid=True, gridcolor=GRID, automargin=True, tickfont=dict(color="#f4f5f7")),
+        xaxis=dict(showgrid=True, gridcolor=GRID, automargin=True, tickfont=dict(color=TEXT)),
+        yaxis=dict(showgrid=True, gridcolor=GRID, automargin=True, tickfont=dict(color=TEXT)),
         **extra,
     )
 
@@ -47,22 +49,23 @@ def render_plan_progress() -> None:
 def render_kpis(table: dict) -> None:
     rows = table.get("rows", [])
     if not rows:
-        st.info("Todavía no hay datos. Pulsa **🚀 Cargar plan** o añade tu primer mes en la tabla.")
+        st.info("Todavía no hay datos. Pulsa **Cargar plan** o añade tu primer mes en la tabla.")
         return
     this_month = time.strftime("%Y-%m")
     row = next((r for r in rows if r.get("date") == this_month), rows[0])
 
-    pills = [("Mes activo", row.get("date", "N/D"))]
+    figs = [("Mes activo", row.get("date", "N/D"), "")]
     if "Patrimonio" in row:
-        pills.append(("Patrimonio", _money(row["Patrimonio"])))
+        figs.append(("Patrimonio", _money(row["Patrimonio"]), ""))
     if "Ingresos" in row and "Gastos_Fijos" in row:
-        pills.append(("Flujo libre", _money(row["Ingresos"] - row["Gastos_Fijos"])))
+        free = row["Ingresos"] - row["Gastos_Fijos"]
+        figs.append(("Flujo libre al mes", _money(free), "neg" if free < 0 else "pos"))
     if "Deuda_Pendiente" in row:
-        pills.append(("Deuda viva", _money(row["Deuda_Pendiente"])))
+        figs.append(("Deuda viva", _money(row["Deuda_Pendiente"]), ""))
 
-    cols = st.columns(len(pills))
-    for col, (label, value) in zip(cols, pills):
-        col.markdown(f"<div class='kpi-pill'>{label}<strong>{value}</strong></div>", unsafe_allow_html=True)
+    html = "".join(f"<div class='figure'><div class='figure-label'>{label}</div>"
+                   f"<div class='figure-value {cls}'>{value}</div></div>" for label, value, cls in figs)
+    st.markdown(f"<div class='figures'>{html}</div>", unsafe_allow_html=True)
 
 
 def render_projection(df) -> None:
@@ -72,21 +75,21 @@ def render_projection(df) -> None:
     fig = go.Figure()
     if "Patrimonio" in df.columns:
         fig.add_trace(go.Scatter(x=df["date"], y=df["Patrimonio"], name="Patrimonio neto",
-                                 mode="lines+markers", line=dict(color="#4f8cff", width=3), marker=dict(size=6)))
+                                 mode="lines+markers", line=dict(color=WEALTH, width=3), marker=dict(size=6)))
     if "Deuda_Pendiente" in df.columns:
         fig.add_trace(go.Scatter(x=df["date"], y=df["Deuda_Pendiente"], name="Deuda pendiente",
-                                 mode="lines+markers", line=dict(color="#ef4444", width=2, dash="dot"),
+                                 mode="lines+markers", line=dict(color=DEBT, width=2, dash="dot"),
                                  marker=dict(size=6)))
     if "Ahorro_Libre" in df.columns:
         fig.add_trace(go.Bar(x=df["date"], y=df["Ahorro_Libre"], name="Ahorro mensual",
-                             marker_color="rgba(34, 197, 94, 0.45)"))
+                             marker_color="rgba(134, 201, 164, 0.40)"))
     if not fig.data:                                  # tabla con otras columnas: dibujar las tres primeras
         for c in list(df.columns[1:4]):
             fig.add_trace(go.Scatter(x=df["date"], y=df[c], name=c, mode="lines+markers"))
     _layout(fig, 320, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     fig.update_xaxes(type="category")                 # "2026-11" son meses, no fechas con días
     fig.update_yaxes(tickprefix="$")
-    with st.expander("📈 Proyección financiera mes a mes", expanded=True):
+    with st.expander("Proyección financiera mes a mes", expanded=True):
         st.caption("Se actualiza al editar la tabla de abajo o cuando el Co-Pilot cambia un dato.")
         st.plotly_chart(fig, theme=None, **stretch(st.plotly_chart))
 
@@ -102,9 +105,9 @@ def render_distribution(table: dict) -> None:
         return
     saving = max(inc - fixed, 0)
     fig = go.Figure(go.Pie(labels=["Gastos fijos", "Ahorro libre"], values=[fixed, saving], hole=0.55,
-                           marker=dict(colors=["#f59e0b", "#22c55e"]), textinfo="label+percent"))
+                           marker=dict(colors=[WARN, GOOD], line=dict(color=INK, width=2)), textinfo="label+percent", textfont=dict(color=INK, size=13), insidetextorientation="horizontal"))
     _layout(fig, 260, showlegend=False)
-    with st.expander(f"🥧 ¿En qué se va tu dinero? ({row.get('date')})", expanded=False):
+    with st.expander(f"¿En qué se va tu dinero? ({row.get('date')})", expanded=False):
         st.plotly_chart(fig, theme=None, **stretch(st.plotly_chart))
 
 
@@ -121,12 +124,12 @@ def render_chart(chart: dict) -> None:
     fig = go.Figure()
     if kind == "line":
         fig.add_trace(go.Scatter(x=labels, y=values, mode="lines+markers",
-                                 line=dict(color="#4f8cff", width=3), marker=dict(size=8, color="#22c55e")))
+                                 line=dict(color=WEALTH, width=3), marker=dict(size=8, color=GOOD)))
     elif kind in ("donut", "pie"):
         fig.add_trace(go.Pie(labels=labels, values=values, hole=0.45 if kind == "donut" else 0,
-                             marker=dict(colors=PALETTE), textinfo="label+percent", textposition="inside"))
+                             marker=dict(colors=PALETTE, line=dict(color=INK, width=2)), textinfo="label+percent", textposition="inside", textfont=dict(color=INK, size=13), insidetextorientation="horizontal"))
     else:
-        fig.add_trace(go.Bar(x=labels, y=values, marker_color="#4f8cff", textposition="auto",
+        fig.add_trace(go.Bar(x=labels, y=values, marker_color=WEALTH, textposition="auto",
                              text=[f"${v:,.0f}" if isinstance(v, (int, float)) and v >= 100 else str(v) for v in values]))
-    _layout(fig, 320, title=dict(text=chart.get("title", ""), font=dict(color="#f4f5f7", size=15)))
+    _layout(fig, 320, title=dict(text=chart.get("title", ""), font=dict(color=TEXT, size=16, family="Newsreader, serif")))
     st.plotly_chart(fig, theme=None, **stretch(st.plotly_chart))
