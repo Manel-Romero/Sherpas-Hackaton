@@ -111,7 +111,18 @@ Liabilities: {json.dumps(profile.get('liabilities', []), ensure_ascii=False)}
             SystemMessage(content=system_prompt),
             HumanMessage(content=human_content)
         ]
-        result: SynthesizedCaseOutput = await structured_llm.ainvoke(messages)
+        try:
+            result: SynthesizedCaseOutput = await structured_llm.ainvoke(messages)
+        except Exception as e:
+            # Si el proxy rechaza el esquema estricto (400 antes de generar nada, sin coste), se repite
+            # una vez pidiendo la misma estructura como llamada a herramienta, que admiten todos los modelos.
+            # Otros fallos (clave, red, tiempo) no se reintentan: se pagarían dos veces.
+            msg = str(e).lower()
+            if not ("400" in msg or "schema" in msg or "response_format" in msg):
+                raise
+            logger.warning(f"El proxy rechazó la salida estructurada estricta ({e}); reintento con function_calling.")
+            structured_llm = llm.with_structured_output(SynthesizedCaseOutput, method="function_calling")
+            result = await structured_llm.ainvoke(messages)
 
         master_plan = MasterPlan(
             case_id=case_id,

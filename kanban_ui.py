@@ -505,7 +505,8 @@ def notify_agent_of_kanban_change(
             "case_id": case_id,
             "session_id": session_id,
         }
-        with httpx.Client(timeout=30.0) as client:
+        # gpt-5-mini razona y puede usar herramientas: 30 s se quedaban cortos (el backend seguiría y cobraría igual)
+        with httpx.Client(timeout=120.0) as client:
             resp = client.post(f"{api_base}/api/chat", json=payload)
             if resp.status_code == 200:
                 data = resp.json()
