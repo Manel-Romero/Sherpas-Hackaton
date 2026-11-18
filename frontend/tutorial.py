@@ -7,6 +7,7 @@ import streamlit as st
 
 from compat import stretch
 
+import glossary
 import personalize
 import voice_ui
 import workspaces
@@ -48,10 +49,10 @@ def _dialog() -> None:
 
     st.progress((step + 1) / len(steps), text=f"Paso {step + 1} de {len(steps)}")
     st.markdown(f"## {s['title']}")
-    st.markdown(s["body"])
+    glossary.markdown(st, s["body"])                 # términos técnicos con su definición al pasar el ratón
     if s.get("more"):
         with st.expander("Ver el resumen completo"):
-            st.markdown(s["more"])
+            glossary.markdown(st, s["more"])
     voice_ui.speak_button(f"{s['title']}. {s.get('speech') or s['body']}", key=f"tut{step}")
 
     c_skip, c_back, c_next = st.columns(3)

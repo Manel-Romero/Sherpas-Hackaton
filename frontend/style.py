@@ -428,6 +428,26 @@ style = """
         fill: var(--muted) !important;
     }
 
+    /* Glossary: technical terms get a dotted underline; hovering shows a plain-language definition */
+    .gloss { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px;
+             text-decoration-thickness: 1px; cursor: help; position: relative; }
+    .gloss:hover { text-decoration-color: var(--text); }
+    html:not(.gloss-js) .gloss:hover::after {
+        content: attr(data-def); position: absolute; left: 0; top: calc(100% + 6px); z-index: 1000;
+        width: max-content; max-width: 280px; padding: 8px 11px; white-space: normal; pointer-events: none;
+        background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+        font-family: var(--sans); font-size: 13px; font-weight: 400; font-style: normal; line-height: 1.45;
+        letter-spacing: 0; text-transform: none; text-decoration: none; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+
+    .gloss-tip {
+        display: none; position: fixed; z-index: 2147483000; max-width: 300px; padding: 8px 11px; pointer-events: none;
+        background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+        font-family: var(--sans); font-size: 13px; font-weight: 400; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    /* the zero-height iframe that installs the tooltip layer takes no space */
+    [data-testid="stElementContainer"]:has(iframe[title="st.iframe"]) { display: none; }
+
     /* ---- User strip, figures, dialogs, progress ---- */
     .user-chip, .user-chip strong { color: var(--text) !important; }
     .user-chip { display: flex; align-items: baseline; gap: 12px; padding-top: 4px; flex-wrap: wrap; }

@@ -15,6 +15,7 @@ import streamlit as st
 from compat import stretch
 
 import dashboard_ui
+import glossary
 import personalize
 import voice_ui
 import workspaces
@@ -84,7 +85,10 @@ def render(prompt: str | None) -> None:
         box, chip = _empty_state()
     for i, m in enumerate(ss.messages):
         with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+            if m["role"] == "assistant":
+                glossary.markdown(st, m["content"])  # términos técnicos con su definición al pasar el ratón
+            else:
+                st.markdown(m["content"])
             if m.get("chart"):
                 dashboard_ui.render_chart(m["chart"])
             if m["role"] == "assistant":

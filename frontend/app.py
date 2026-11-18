@@ -35,6 +35,7 @@ for _key, _val in {"base": "dark", "primaryColor": "#86c9a4", "backgroundColor":
     _st_config.set_option(f"theme.{_key}", _val)
 
 import chat_ui
+import glossary
 import dashboard_ui
 import kanban_store as ks
 import kanban_ui
@@ -49,6 +50,7 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="Sherpas Co-Pilot", page_icon=":material/landscape:", layout="wide")
 st.markdown(style, unsafe_allow_html=True)
+glossary.install()                  # definiciones de términos técnicos al pasar el ratón
 
 ss = st.session_state
 

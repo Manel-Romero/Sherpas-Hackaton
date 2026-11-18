@@ -152,3 +152,29 @@ def test_backend_reads_saved_summary(data_dir, monkeypatch):
     finally:
         (d / "summary.json").unlink()
         d.rmdir()
+
+
+# ---------------------------------------------------------------- glosario
+def test_glossary_marks_first_occurrence_only():
+    import glossary
+    out = glossary.annotate("Tu patrimonio neto sube. El patrimonio neto es clave.")
+    assert out.count('class="gloss"') == 1
+    assert 'data-def="Todo lo que tienes' in out
+
+
+def test_glossary_longest_term_wins_and_acronyms_are_case_sensitive():
+    import glossary
+    out = glossary.annotate("Tu flujo de caja libre. Qué ira. Abre una IRA y un 401(k). La TAE y la tae.")
+    assert ">flujo de caja libre</span>" in out
+    assert ">IRA</span>" in out and ">ira</span>" not in out
+    assert ">401(k)</span>" in out
+    assert ">TAE</span>" in out and ">tae</span>" not in out
+
+
+def test_glossary_leaves_code_and_links_alone_and_escapes_html():
+    import glossary
+    out = glossary.annotate("`patrimonio`\n```\na < b liquidez\n```\n<b>x</b> liquidez [mi cartera](https://x.com/cartera)")
+    assert "`patrimonio`" in out and "a < b liquidez" in out
+    assert "&lt;b>x&lt;/b>" in out
+    assert "(https://x.com/cartera)" in out                # la dirección del enlace no se toca
+    assert out.count('class="gloss"') == 2                 # liquidez (fuera del código) y cartera (texto del enlace)
