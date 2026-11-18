@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "He tenido un gasto imprevisto de 2.000 $. Ajusta mi tabla para absorberlo y dime cómo afecta a mi plan."
+  },
+  {
+    "role": "user",
+    "content": "Hola"
+  }
+]

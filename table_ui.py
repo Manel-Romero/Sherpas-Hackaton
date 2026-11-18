@@ -32,17 +32,22 @@ def changed() -> bool:
 
 
 def _add_column():
-    with st.popover("➕ Add column"):
+    with st.popover("➕ Añadir columna"):
         with st.form("add_col", clear_on_submit=True):
-            name = st.text_input("Column name")
-            default = st.number_input("Default value", value=0.0)
-            if st.form_submit_button("Add") and name.strip():
+            name = st.text_input("Nombre de la columna")
+            default = st.number_input("Valor por defecto", value=0.0)
+            if st.form_submit_button("Añadir") and name.strip():
                 try:
                     table = ts.load()
-                    table["columns"].append(name.strip())
+                    col_name = name.strip()
+                    table["columns"].append(col_name)
                     for r in table["rows"]:
-                        r[name.strip()] = default
+                        r[col_name] = default
                     ts.save(table)
+                    st.session_state.ask_talk_agent = {
+                        "type": "column",
+                        "title": col_name
+                    }
                     st.rerun()      # table_version is now stale -> refresh() reloads the table
                 except ValueError as e:
                     st.error(str(e))
@@ -50,11 +55,37 @@ def _add_column():
 
 def render():
     ss = st.session_state
+
+    # Preguntar al usuario si quiere hablar con el agente tras anadir una columna
+    if "ask_talk_agent" in ss and ss.ask_talk_agent and ss.ask_talk_agent.get("type") == "column":
+        col_name = ss.ask_talk_agent.get("title", "")
+        with st.container():
+            c_info, c_action, c_close = st.columns([6, 3, 1])
+            with c_info:
+                st.info(f"Has añadido la columna **'{col_name}'**. ¿Quieres hablar con el Co-Pilot sobre ella?")
+            with c_action:
+                if st.button("💬 Hablar con el agente", key=f"talk_col_{col_name}"):
+                    del ss.ask_talk_agent
+                    import kanban_ui
+                    case_id = getattr(ss, "case_id", "michael-carter")
+                    session_id = getattr(ss, "session_id", "default")
+                    kanban_ui.notify_agent_of_kanban_change(
+                        "add",
+                        {"title": f"la columna '{col_name}'"},
+                        case_id=case_id,
+                        session_id=session_id
+                    )
+                    st.rerun()
+            with c_close:
+                if st.button("✕ No", key=f"dismiss_col_{col_name}"):
+                    del ss.ask_talk_agent
+                    st.rerun()
+
     _add_column()
 
     columns = list(ss.df.columns[1:])
     config = {"date": st.column_config.TextColumn(
-        "Month (YYYY-MM)",
+        "Mes (AAAA-MM)",
         required=True,
         default=ts.default_month(ts.load()),    # new rows start with the next month
     )}

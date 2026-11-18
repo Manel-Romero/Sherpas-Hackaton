@@ -1,0 +1,16 @@
+{
+  "cards": [
+    {
+      "id": "d18110",
+      "title": "Hola",
+      "short_description": "Hola",
+      "detailed_description": "Hola",
+      "category": "debt",
+      "impact": "",
+      "week": 2,
+      "steps": [],
+      "status": "todo",
+      "content": "Hola"
+    }
+  ]
+}
