@@ -31,6 +31,14 @@ def get_table(case_id: str):
     try:
         ts.set_case(case_id)
         data = ts.load(case_id)
+        if not data.get("rows"):
+            data = ts.initialize_default_table(
+                case_id=case_id,
+                monthly_income=15000.0,
+                monthly_expenses=9306.0,
+                total_debt=28500.0,
+                net_worth=218500.0
+            )
         return {
             "case_id": case_id,
             "version": ts.version(case_id),
