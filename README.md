@@ -31,7 +31,7 @@ Un plan financiero tradicional en PDF se queda obsoleto al primer imprevisto de 
                     ┌──────────────────────────────────────────────┐
                     │        Frontend (React 19 + TypeScript)      │
                     │  Vite · Tailwind CSS · Framer Motion · Audio │
-                    │  Recharts · Cache Resiliente Offline         │
+                    │  Recharts · Cache Resiliente Offline           │
                     └──────────────────────┬───────────────────────┘
                                            │ HTTP REST / SSE / Voice
                                            ▼
