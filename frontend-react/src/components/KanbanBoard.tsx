@@ -12,7 +12,8 @@ import {
   ArrowLeft,
   X,
   Check,
-  TrendingUp
+  TrendingUp,
+  Target
 } from 'lucide-react';
 import { KanbanCard, KanbanState } from '../types';
 import { audioService } from '../services/audioService';
@@ -33,80 +34,70 @@ const CATEGORY_CONFIG: Record<string, {
   color: string; 
   bg: string; 
   border: string; 
-  icon: string;
   badgeClass: string;
 }> = {
   debt: { 
     label: 'Deuda', 
-    color: '#bfa08f', 
-    bg: 'rgba(191, 160, 143, 0.14)', 
-    border: 'rgba(191, 160, 143, 0.22)', 
-    icon: '💳',
-    badgeClass: 'bg-[#875f52]/10 dark:bg-[#bfa08f]/20 text-[#875f52] dark:text-[#f5e5df] border-[#875f52]/20 dark:border-[#bfa08f]/30'
+    color: '#c97a63', 
+    bg: 'rgba(201, 122, 99, 0.12)', 
+    border: 'rgba(201, 122, 99, 0.25)', 
+    badgeClass: 'bg-[#c97a63]/10 dark:bg-[#c97a63]/20 text-[#c97a63] dark:text-[#f5d7cf] border-[#c97a63]/25'
   },
   savings: { 
     label: 'Ahorro', 
-    color: '#8ba898', 
-    bg: 'rgba(139, 168, 152, 0.14)', 
-    border: 'rgba(139, 168, 152, 0.22)', 
-    icon: '🌱',
-    badgeClass: 'bg-[#526e5e]/10 dark:bg-[#8ba898]/20 text-[#3e5648] dark:text-[#d7ebe1] border-[#526e5e]/20 dark:border-[#8ba898]/30'
+    color: '#059669', 
+    bg: 'rgba(5, 150, 105, 0.12)', 
+    border: 'rgba(5, 150, 105, 0.25)', 
+    badgeClass: 'bg-[#059669]/10 dark:bg-[#059669]/20 text-[#059669] dark:text-[#a7f3d0] border-[#059669]/25'
   },
   investment: { 
     label: 'Inversión', 
-    color: '#90acc4', 
-    bg: 'rgba(144, 172, 196, 0.14)', 
-    border: 'rgba(144, 172, 196, 0.22)', 
-    icon: '📈',
-    badgeClass: 'bg-[#4a6b82]/10 dark:bg-[#90acc4]/20 text-[#324a5c] dark:text-[#dceaf5] border-[#4a6b82]/20 dark:border-[#90acc4]/30'
+    color: '#2563eb', 
+    bg: 'rgba(37, 99, 235, 0.12)', 
+    border: 'rgba(37, 99, 235, 0.25)', 
+    badgeClass: 'bg-[#2563eb]/10 dark:bg-[#2563eb]/20 text-[#2563eb] dark:text-[#bfdbfe] border-[#2563eb]/25'
   },
   insurance: { 
     label: 'Seguros', 
-    color: '#aba59a', 
-    bg: 'rgba(171, 165, 154, 0.14)', 
-    border: 'rgba(171, 165, 154, 0.22)', 
-    icon: '🛡️',
-    badgeClass: 'bg-[#6d665b]/10 dark:bg-[#aba59a]/20 text-[#4d4840] dark:text-[#f0ece5] border-[#6d665b]/20 dark:border-[#aba59a]/30'
+    color: '#7c3aed', 
+    bg: 'rgba(124, 58, 237, 0.12)', 
+    border: 'rgba(124, 58, 237, 0.25)', 
+    badgeClass: 'bg-[#7c3aed]/10 dark:bg-[#7c3aed]/20 text-[#7c3aed] dark:text-[#ddd6fe] border-[#7c3aed]/25'
   },
   lifestyle: { 
     label: 'Presupuesto', 
-    color: '#a79dae', 
-    bg: 'rgba(167, 157, 174, 0.14)', 
-    border: 'rgba(167, 157, 174, 0.22)', 
-    icon: '🏡',
-    badgeClass: 'bg-[#695d70]/10 dark:bg-[#a79dae]/20 text-[#4c4252] dark:text-[#eee8f2] border-[#695d70]/20 dark:border-[#a79dae]/30'
+    color: '#0891b2', 
+    bg: 'rgba(8, 145, 178, 0.12)', 
+    border: 'rgba(8, 145, 178, 0.25)', 
+    badgeClass: 'bg-[#0891b2]/10 dark:bg-[#0891b2]/20 text-[#0891b2] dark:text-[#a5f3fc] border-[#0891b2]/25'
   },
   immediate: { 
     label: 'Prioritaria', 
-    color: '#b38a7c', 
-    bg: 'rgba(179, 138, 124, 0.14)', 
-    border: 'rgba(179, 138, 124, 0.22)', 
-    icon: '⚡',
-    badgeClass: 'bg-[#875f52]/10 dark:bg-[#b38a7c]/20 text-[#875f52] dark:text-[#f9e9e4] border-[#875f52]/20 dark:border-[#b38a7c]/30'
+    color: '#ea580c', 
+    bg: 'rgba(234, 88, 12, 0.12)', 
+    border: 'rgba(234, 88, 12, 0.25)', 
+    badgeClass: 'bg-[#ea580c]/10 dark:bg-[#ea580c]/20 text-[#ea580c] dark:text-[#fed7aa] border-[#ea580c]/25'
   },
   prioritaria: { 
     label: 'Prioritaria', 
-    color: '#b38a7c', 
-    bg: 'rgba(179, 138, 124, 0.14)', 
-    border: 'rgba(179, 138, 124, 0.22)', 
-    icon: '⚡',
-    badgeClass: 'bg-[#875f52]/10 dark:bg-[#b38a7c]/20 text-[#875f52] dark:text-[#f9e9e4] border-[#875f52]/20 dark:border-[#b38a7c]/30'
+    color: '#ea580c', 
+    bg: 'rgba(234, 88, 12, 0.12)', 
+    border: 'rgba(234, 88, 12, 0.25)', 
+    badgeClass: 'bg-[#ea580c]/10 dark:bg-[#ea580c]/20 text-[#ea580c] dark:text-[#fed7aa] border-[#ea580c]/25'
   },
   goal: { 
     label: 'Objetivo Maestro', 
-    color: '#b0a89a', 
-    bg: 'rgba(176, 168, 154, 0.14)', 
-    border: 'rgba(176, 168, 154, 0.22)', 
-    icon: '🎯',
-    badgeClass: 'bg-[#736a5c]/10 dark:bg-[#b0a89a]/20 text-[#50493e] dark:text-[#f2eee9] border-[#736a5c]/20 dark:border-[#b0a89a]/30'
+    color: '#d97706', 
+    bg: 'rgba(217, 119, 6, 0.12)', 
+    border: 'rgba(217, 119, 6, 0.25)', 
+    badgeClass: 'bg-[#d97706]/10 dark:bg-[#d97706]/20 text-[#d97706] dark:text-[#fde68a] border-[#d97706]/25'
   },
   general: { 
     label: 'General', 
-    color: '#94a3b8', 
-    bg: 'rgba(148, 163, 184, 0.14)', 
-    border: 'rgba(148, 163, 184, 0.2)', 
-    icon: '📌',
-    badgeClass: 'bg-slate-500/10 dark:bg-slate-400/20 text-slate-700 dark:text-slate-200 border-slate-500/20 dark:border-slate-400/30'
+    color: '#64748b', 
+    bg: 'rgba(100, 116, 139, 0.12)', 
+    border: 'rgba(100, 116, 139, 0.25)', 
+    badgeClass: 'bg-slate-500/10 dark:bg-slate-400/20 text-slate-700 dark:text-slate-200 border-slate-500/20'
   },
 };
 
@@ -260,71 +251,51 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <div className="space-y-5">
-      {/* Plan Execution Progress Bar (Inspired by Streamlit render_plan_progress) */}
+      {/* Plan Execution Progress Bar */}
       <div className="p-4 sm:p-5 rounded-3xl liquid-glass shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Left side info */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#526e5e]/15 dark:bg-[#6e8c7b]/20 text-[#526e5e] dark:text-[#8ba898] flex items-center justify-center shrink-0 border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
-              <TrendingUp className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-2xl bg-[#526e5e]/15 dark:bg-[#6e8c7b]/20 text-[#526e5e] dark:text-[#8ba898] flex items-center justify-center shrink-0 border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
+              <TrendingUp className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 font-display">
-                  Progreso de Ejecución del Plan
-                </span>
-                <span className="num-tabular text-xs font-bold text-[#526e5e] dark:text-[#8ba898]">
-                  {percentCompleted}%
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-display">
+                  Progreso del Plan
                 </span>
               </div>
-              <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">
+              <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight mt-0.5">
                 {totalCards > 0 ? (
                   <>
-                    <span className="font-bold text-[#526e5e] dark:text-[#8ba898]">{doneCards}</span> de <span className="font-bold">{totalCards}</span> acciones completadas ({percentCompleted}%) · <span className="font-bold text-[#9c9485] dark:text-[#d4cbb8]">{inProcessCards}</span> en curso
+                    <span className="font-bold text-[#526e5e] dark:text-[#8ba898]">{doneCards}</span> / {totalCards} ({percentCompleted}%)
                   </>
                 ) : (
-                  'Sin acciones planificadas'
+                  'Sin acciones'
                 )}
               </p>
             </div>
           </div>
 
-          {/* Right side celebratory badge or status pill */}
+          {/* Right side celebratory badge */}
           <div className="flex items-center gap-2 self-start sm:self-center">
-            {isFullyCompleted ? (
+            {isFullyCompleted && (
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-500/20 via-[#6e8c7b]/25 to-emerald-500/20 border border-emerald-500/40 text-emerald-800 dark:text-emerald-300 shadow-sm shadow-emerald-500/10"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                <span>¡Plan Ejecutado al 100%!</span>
-                <span>🎉</span>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>100% completado</span>
               </motion.div>
-            ) : (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/[0.04] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 border border-black/5 dark:border-white/5">
-                  <Circle className="w-2.5 h-2.5 text-slate-400" />
-                  <span>{todoCards} por ejecutar</span>
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#9c9485]/10 dark:bg-[#9c9485]/20 text-[#7a6f5e] dark:text-[#d4cbb8] border border-[#9c9485]/20 dark:border-[#9c9485]/30">
-                  <Clock className="w-2.5 h-2.5" />
-                  <span>{inProcessCards} en curso</span>
-                </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#526e5e]/10 dark:bg-[#6e8c7b]/20 text-[#3d5a48] dark:text-[#a3c7b3] border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
-                  <CheckCircle2 className="w-2.5 h-2.5 text-[#526e5e] dark:text-[#8ba898]" />
-                  <span>{doneCards} completadas</span>
-                </span>
-              </div>
             )}
           </div>
         </div>
 
         {/* Animated green gradient progress indicator bar */}
-        <div className="w-full h-2.5 bg-black/[0.06] dark:bg-white/[0.08] rounded-full overflow-hidden p-0.5 border border-black/[0.04] dark:border-white/[0.06]">
+        <div className="w-full h-2 bg-black/[0.06] dark:bg-white/[0.08] rounded-full overflow-hidden p-0.5 border border-black/[0.04] dark:border-white/[0.06]">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-[#526e5e] via-[#6e8c7b] to-[#8ba898] dark:from-[#526e5e] dark:via-[#6e8c7b] dark:to-[#8ba898] shadow-sm relative overflow-hidden"
+            className="h-full rounded-full bg-gradient-to-r from-[#526e5e] via-[#6e8c7b] to-[#8ba898] shadow-sm relative overflow-hidden"
             initial={{ width: 0 }}
             animate={{ width: `${percentCompleted}%` }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -338,16 +309,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       {(goalCard || immediateCard) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {goalCard && (
-            <div className="p-4 rounded-3xl liquid-glass shadow-sm">
+            <div 
+              style={{ borderColor: '#d9770635', boxShadow: '0 0 14px #d9770612' }}
+              className="p-4 rounded-3xl liquid-glass shadow-xs border"
+            >
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="text-[10px] font-semibold text-[#875f52] dark:text-[#d8b4a0] uppercase tracking-wider flex items-center gap-1.5 font-display">
-                  <span>🎯</span>
+                <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider flex items-center gap-1.5 font-display">
+                  <Target className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                   <span>Objetivo Maestro del Plan</span>
                 </div>
                 {onConsultTask && (
                   <button
                     onClick={() => onConsultTask(goalCard.title, goalCard.impact)}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-[#875f52] dark:text-[#d8b4a0] hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:underline cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3" />
                     <span>Consultar</span>
@@ -355,23 +329,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 )}
               </div>
               <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug">{goalCard.title}</h4>
-              {goalCard.short_description && goalCard.short_description !== goalCard.title && (
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{goalCard.short_description}</p>
-              )}
             </div>
           )}
 
           {immediateCard && (
-            <div className="p-4 rounded-3xl liquid-glass shadow-sm">
+            <div 
+              style={{ borderColor: '#ea580c35', boxShadow: '0 0 14px #ea580c12' }}
+              className="p-4 rounded-3xl liquid-glass shadow-xs border"
+            >
               <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="text-[10px] font-semibold text-[#526e5e] dark:text-[#8ba898] uppercase tracking-wider flex items-center gap-1.5 font-display">
-                  <span>⚡</span>
+                <div className="text-[10px] font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wider flex items-center gap-1.5 font-display">
+                  <Sparkles className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
                   <span>Acción Inmediata para Hoy</span>
                 </div>
                 {onConsultTask && (
                   <button
                     onClick={() => onConsultTask(immediateCard.title, immediateCard.impact)}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-[#526e5e] dark:text-[#8ba898] hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-orange-700 dark:text-orange-300 hover:underline cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3" />
                     <span>Consultar</span>
@@ -380,7 +354,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               </div>
               <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug">{immediateCard.title}</h4>
               {immediateCard.impact && (
-                <span className="inline-block text-[11px] font-semibold text-[#526e5e] dark:text-[#8ba898] mt-1">
+                <span className="inline-block text-[11px] font-semibold text-orange-700 dark:text-orange-300 mt-1">
                   Impacto: {formatImpactCompact(immediateCard.impact)}
                 </span>
               )}
@@ -402,7 +376,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           >
             Todas ({cards.length})
           </button>
-          {Object.entries(CATEGORY_CONFIG).slice(0, 6).map(([catKey, style]) => {
+          {Object.entries(CATEGORY_CONFIG).slice(0, 7).map(([catKey, style]) => {
             const count = cards.filter(c => c.category === catKey).length;
             if (count === 0) return null;
             return (
@@ -411,11 +385,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 onClick={() => setActiveCategoryFilter(catKey)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
                   activeCategoryFilter === catKey
-                    ? `${style.badgeClass} shadow-sm font-bold`
+                    ? 'bg-black/10 dark:bg-white/15 text-slate-900 dark:text-white border-black/15 dark:border-white/20 shadow-sm'
                     : 'bg-black/[0.02] dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-transparent'
                 }`}
               >
-                <span>{style.icon}</span>
+                <span 
+                  className="w-2 h-2 rounded-full shrink-0 shadow-xs" 
+                  style={{ backgroundColor: style.color }} 
+                />
                 <span>{style.label}</span>
                 <span className="text-[10px] opacity-75 font-mono">({count})</span>
               </button>
@@ -469,21 +446,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <div
                         key={card.id}
                         onClick={() => setSelectedCard(card)}
-                        className="group relative p-3.5 rounded-2xl liquid-glass-card hover:border-[#526e5e]/40 dark:hover:border-[#8ba898]/40 shadow-sm transition-all cursor-pointer"
+                        style={{
+                          borderColor: `${cfg.color}35`,
+                          boxShadow: `0 0 14px ${cfg.color}12`,
+                        }}
+                        className="group relative p-3.5 rounded-2xl liquid-glass-card border hover:border-[#526e5e]/50 dark:hover:border-[#8ba898]/50 shadow-xs transition-all cursor-pointer"
                       >
-                        {/* Top Badges */}
+                        {/* Top Indicator */}
                         <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-2">
                             <span 
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${cfg.badgeClass}`}
-                            >
-                              <span>{cfg.icon}</span>
-                              <span>{cfg.label}</span>
+                              className="w-2 h-2 rounded-full shrink-0 shadow-xs" 
+                              style={{ backgroundColor: cfg.color }} 
+                              title={cfg.label}
+                            />
+                            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                              {cfg.label}
                             </span>
                             {card.week && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-black/[0.04] dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 border border-black/5 dark:border-white/5">
-                                <Calendar className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
-                                Sem {card.week}
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                                · Sem {card.week}
                               </span>
                             )}
                           </div>
@@ -501,20 +483,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug mb-1 group-hover:text-[#526e5e] dark:group-hover:text-[#8ba898] transition-colors font-display">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug mb-2 group-hover:text-[#526e5e] dark:group-hover:text-[#8ba898] transition-colors font-display">
                           {card.title}
                         </h4>
 
-                        {/* Short Description */}
-                        {card.short_description && card.short_description !== card.title && (
-                          <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed mb-2">
-                            {card.short_description}
-                          </p>
-                        )}
-
                         {/* Financial Impact Badge */}
                         {card.impact && (
-                          <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#526e5e]/10 dark:bg-[#6e8c7b]/20 text-[#3d5a48] dark:text-[#a3c7b3] border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
+                          <div className="mb-2.5 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#526e5e]/10 dark:bg-[#6e8c7b]/20 text-[#3d5a48] dark:text-[#a3c7b3] border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
                             <Sparkles className="w-3 h-3 text-[#526e5e] dark:text-[#8ba898]" />
                             <span>{formatImpactCompact(card.impact)}</span>
                           </div>
@@ -606,12 +581,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <>
                       <div className="flex items-start justify-between gap-4 mb-4">
                         <div>
-                          <span 
-                            className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border mb-2.5 ${selectedConfig.badgeClass}`}
+                          <div 
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border mb-2.5" 
+                            style={{ borderColor: `${selectedConfig.color}40`, backgroundColor: `${selectedConfig.color}15` }}
                           >
-                            <span>{selectedConfig.icon}</span>
-                            <span>{selectedConfig.label}</span>
-                          </span>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selectedConfig.color }} />
+                            <span style={{ color: selectedConfig.color }} className="font-semibold">{selectedConfig.label}</span>
+                          </div>
                           <h3 className="text-lg font-bold text-slate-900 dark:text-white font-display">{selectedCard.title}</h3>
                         </div>
                         <button
