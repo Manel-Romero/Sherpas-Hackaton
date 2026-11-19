@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: sherpas-wealth-platform
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /api/cases
+    envVars:
+      - key: LLM_PROXY_URL
+        value: https://llm-hackathon.sherpaswealth.com/v1
+      - key: MCP_URL
+        value: https://mcp-hackathon.sherpaswealth.com/mcp
+      - key: FAST_MODEL
+        value: gemini-3.5-flash-lite
+      - key: REASONING_MODEL
+        value: gpt-5-mini
+      - key: CHAT_MODEL
+        value: gpt-5-mini
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: TEAM_KEY
+        sync: false
+      - key: MCP_TOKEN
+        sync: false
