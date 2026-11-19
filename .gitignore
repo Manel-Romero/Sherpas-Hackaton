@@ -27,8 +27,9 @@ htmlcov/
 # AISLOP
 .aislop/
 
-# Runtime data
-data/
+# Runtime data logs
+data/logs/
+*.log
 
 # OS and editors
 .DS_Store

@@ -1,0 +1,107 @@
+{
+  "columns": [
+    "Ingresos",
+    "Gastos_Fijos",
+    "Ahorro_Libre",
+    "Deuda_Pendiente",
+    "Patrimonio"
+  ],
+  "rows": [
+    {
+      "date": "2026-09",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 28500.0,
+      "Patrimonio": 218500.0
+    },
+    {
+      "date": "2026-10",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 28500.0,
+      "Patrimonio": 224194.0
+    },
+    {
+      "date": "2026-11",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 28250.0,
+      "Patrimonio": 229888.0
+    },
+    {
+      "date": "2026-12",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 28000.0,
+      "Patrimonio": 235582.0
+    },
+    {
+      "date": "2027-01",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 27750.0,
+      "Patrimonio": 241276.0
+    },
+    {
+      "date": "2027-02",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 27500.0,
+      "Patrimonio": 246970.0
+    },
+    {
+      "date": "2027-03",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 27250.0,
+      "Patrimonio": 252664.0
+    },
+    {
+      "date": "2027-04",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 27000.0,
+      "Patrimonio": 258358.0
+    },
+    {
+      "date": "2027-05",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 26750.0,
+      "Patrimonio": 264052.0
+    },
+    {
+      "date": "2027-06",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 26500.0,
+      "Patrimonio": 269746.0
+    },
+    {
+      "date": "2027-07",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 26250.0,
+      "Patrimonio": 275440.0
+    },
+    {
+      "date": "2027-08",
+      "Ingresos": 15000.0,
+      "Gastos_Fijos": 9306.0,
+      "Ahorro_Libre": 5694.0,
+      "Deuda_Pendiente": 26000.0,
+      "Patrimonio": 281134.0
+    }
+  ]
+}

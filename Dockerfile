@@ -33,6 +33,7 @@ COPY backend/ ./backend/
 COPY cases/ ./cases/
 COPY data/ ./data/
 COPY kanban_store.py table_store.py boxes_store.py table_mcp.py ./
+RUN mkdir -p data/cases data/logs
 
 # Copy compiled frontend from Stage 1 into frontend-react/dist
 COPY --from=frontend-builder /app/frontend-react/dist ./frontend-react/dist

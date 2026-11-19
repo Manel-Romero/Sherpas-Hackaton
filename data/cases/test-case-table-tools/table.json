@@ -1,0 +1,129 @@
+{
+  "columns": [
+    "Ingresos",
+    "Gastos_Fijos",
+    "Ahorro_Libre",
+    "Deuda_Pendiente",
+    "Patrimonio",
+    "Gasto_Imprevisto_Accidente"
+  ],
+  "rows": [
+    {
+      "date": "2026-03",
+      "Ingresos": 0.0,
+      "Gastos_Fijos": 5500.0,
+      "Ahorro_Libre": -5500.0,
+      "Deuda_Pendiente": 0.0,
+      "Patrimonio": 0.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2026-09",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 10000.0,
+      "Patrimonio": 1500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2026-10",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 10000.0,
+      "Patrimonio": 3000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2026-11",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 9750.0,
+      "Patrimonio": 4500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2026-12",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 9500.0,
+      "Patrimonio": 6000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-01",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 9250.0,
+      "Patrimonio": 7500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-02",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 9000.0,
+      "Patrimonio": 9000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-03",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 8750.0,
+      "Patrimonio": 10500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-04",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 8500.0,
+      "Patrimonio": 12000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-05",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 8250.0,
+      "Patrimonio": 13500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-06",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 8000.0,
+      "Patrimonio": 15000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-07",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 7750.0,
+      "Patrimonio": 16500.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    },
+    {
+      "date": "2027-08",
+      "Ingresos": 5000.0,
+      "Gastos_Fijos": 3500.0,
+      "Ahorro_Libre": 1500.0,
+      "Deuda_Pendiente": 7500.0,
+      "Patrimonio": 18000.0,
+      "Gasto_Imprevisto_Accidente": 0.0
+    }
+  ]
+}

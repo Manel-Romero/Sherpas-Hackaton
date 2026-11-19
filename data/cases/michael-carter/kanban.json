@@ -1,0 +1,64 @@
+{
+  "cards": [
+    {
+      "id": "781dd6",
+      "title": "Pagar tarjeta de credito",
+      "short_description": "Liquidar balance con saldo de liquidez",
+      "detailed_description": "Liquidar balance con saldo de liquidez",
+      "category": "savings",
+      "impact": "$700",
+      "week": 1,
+      "steps": [],
+      "status": "done",
+      "content": "Liquidar balance con saldo de liquidez"
+    },
+    {
+      "id": "35e65b",
+      "title": "Pagar tarjeta de credito",
+      "short_description": "Liquidar balance con saldo de liquidez",
+      "detailed_description": "Liquidar balance con saldo de liquidez",
+      "category": "savings",
+      "impact": "$700",
+      "week": 1,
+      "steps": [],
+      "status": "done",
+      "content": "Liquidar balance con saldo de liquidez"
+    },
+    {
+      "id": "f9fba0",
+      "title": "Pagar tarjeta de credito",
+      "short_description": "Liquidar balance con saldo de liquidez",
+      "detailed_description": "Liquidar balance con saldo de liquidez",
+      "category": "savings",
+      "impact": "$700",
+      "week": 1,
+      "steps": [],
+      "status": "todo",
+      "content": "Liquidar balance con saldo de liquidez"
+    },
+    {
+      "id": "de03a7",
+      "title": "Pagar tarjeta de credito",
+      "short_description": "Liquidar balance con saldo de liquidez",
+      "detailed_description": "Liquidar balance con saldo de liquidez",
+      "category": "savings",
+      "impact": "$700",
+      "week": 1,
+      "steps": [],
+      "status": "todo",
+      "content": "Liquidar balance con saldo de liquidez"
+    },
+    {
+      "id": "0fd92b",
+      "title": "Pagar tarjeta de credito",
+      "short_description": "Liquidar balance con saldo de liquidez",
+      "detailed_description": "Liquidar balance con saldo de liquidez",
+      "category": "savings",
+      "impact": "$700",
+      "week": 1,
+      "steps": [],
+      "status": "todo",
+      "content": "Liquidar balance con saldo de liquidez"
+    }
+  ]
+}

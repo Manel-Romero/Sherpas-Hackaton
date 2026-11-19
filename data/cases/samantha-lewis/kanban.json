@@ -1,0 +1,100 @@
+{
+  "cards": [
+    {
+      "id": "task_1",
+      "title": "Reservar $18,500 para metas cercanas",
+      "short_description": "1) Abrir la banca online",
+      "detailed_description": "1) Abrir la banca online. 2) Crear sub-cuenta/objetivo ‘Metas cercanas’. 3) Transferir $18,500 desde checking. 4) Anotar en calendario la fecha de vencimiento de Ethan (agosto 2027) para revisar antes de pagar.",
+      "category": "immediate",
+      "impact": "+$18,500",
+      "week": 1,
+      "steps": [
+        "Iniciar sesión en el banco online",
+        "Crear sub-cuenta u objetivo llamado 'Metas cercanas'",
+        "Transferir $18,500 y confirmar saldo"
+      ],
+      "status": "todo",
+      "content": "1) Abrir la banca online. 2) Crear sub-cuenta/objetivo ‘Metas cercanas’. 3) Transferir $18,500 desde checking. 4) Anotar en calendario la fecha de vencimiento de Ethan (agosto 2027) para revisar antes de pagar."
+    },
+    {
+      "id": "task_3",
+      "title": "Abrir una IRA tradicional y aportar $7,500 este año",
+      "short_description": "1) En su broker, seleccionar 'abrir cuenta' > IRA tradicional",
+      "detailed_description": "1) En su broker, seleccionar 'abrir cuenta' > IRA tradicional. 2) Completar datos y verificar elegibilidad deducible. 3) Transferir o programar $7,500 como aportación del año. 4) Activar aportes recurrentes si desea automatizar.",
+      "category": "savings",
+      "impact": "+$7,500",
+      "week": 2,
+      "steps": [
+        "Entrar al broker donde mantiene cuentas o elegir una plataforma de IRA",
+        "Abrir IRA tradicional y confirmar elegibilidad",
+        "Transferir $7,500 como aporte del año"
+      ],
+      "status": "todo",
+      "content": "1) En su broker, seleccionar 'abrir cuenta' > IRA tradicional. 2) Completar datos y verificar elegibilidad deducible. 3) Transferir o programar $7,500 como aportación del año. 4) Activar aportes recurrentes si desea automatizar."
+    },
+    {
+      "id": "task_4",
+      "title": "Si aplica, abrir HSA y aportar hasta $4,400",
+      "short_description": "1) Confirmar que su plan de salud es HSA-eligible (documentos del empleador o emisor)",
+      "detailed_description": "1) Confirmar que su plan de salud es HSA-eligible (documentos del empleador o emisor). 2) Abrir HSA en el banco o broker elegido. 3) Programar aportación de $4,400 este año. 4) Marcar la cuenta como prioridad en el flujo de caja.",
+      "category": "savings",
+      "impact": "+$4,400",
+      "week": 2,
+      "steps": [
+        "Verificar si su seguro de salud es compatible con HSA",
+        "Abrir HSA en una entidad confiable",
+        "Programar o transferir $4,400 como aportación anual"
+      ],
+      "status": "todo",
+      "content": "1) Confirmar que su plan de salud es HSA-eligible (documentos del empleador o emisor). 2) Abrir HSA en el banco o broker elegido. 3) Programar aportación de $4,400 este año. 4) Marcar la cuenta como prioridad en el flujo de caja."
+    },
+    {
+      "id": "task_5",
+      "title": "Reducir concentración en VTI y ajustar la mezcla de crecimiento",
+      "short_description": "1) Revisar posiciones y cost-basis disponibles; si falta cost-basis, usar lotes FIFO o consulta interna del broker",
+      "detailed_description": "1) Revisar posiciones y cost-basis disponibles; si falta cost-basis, usar lotes FIFO o consulta interna del broker. 2) Vender $58,300 de VTI y comprar ETFs internacionales y/o diversificadores. 3) Vender adicional de renta variable por $17,100 y comprar fondos de bonos o balanced funds. 4) Documentar la operación por motivos fiscales y marcar revisiones anuales.",
+      "category": "investment",
+      "impact": "-$58,300 y -$17,100",
+      "week": 3,
+      "steps": [
+        "Revisar la posición actual de VTI y confirmar montos disponibles para vender",
+        "Colocar orden de venta por $58,300 de VTI",
+        "Reasignar el producto de la venta hacia ETFs internacionales y una porción a bonos por $17,100"
+      ],
+      "status": "todo",
+      "content": "1) Revisar posiciones y cost-basis disponibles; si falta cost-basis, usar lotes FIFO o consulta interna del broker. 2) Vender $58,300 de VTI y comprar ETFs internacionales y/o diversificadores. 3) Vender adicional de renta variable por $17,100 y comprar fondos de bonos o balanced funds. 4) Documentar la operación por motivos fiscales y marcar revisiones anuales."
+    },
+    {
+      "id": "0f0126",
+      "title": "Separar $18,500 hoy en una cuenta etiquetada 'Metas cercanas' para garantizar pagos y vacaciones",
+      "short_description": "Reserva inmediata evita que los pagos de college y la vacación consuman el colchón de reserva y da espacio para ejecu...",
+      "detailed_description": "Reserva inmediata evita que los pagos de college y la vacación consuman el colchón de reserva y da espacio para ejecutar reubicaciones de inversión sin urgencia",
+      "category": "immediate",
+      "impact": "+$18,500 reservado para pagos y vacaciones",
+      "week": 1,
+      "steps": [
+        "Entrar en la banca online (checking/savings) desde el móvil o web",
+        "Crear una sub-cuenta o libreta de ahorros llamada 'Metas cercanas' o usar la función de etiqueta/objetivo",
+        "Iniciar una transferencia instantánea o programada de $18,500 desde checking a esa sub-cuenta y confirmar el saldo etiquetado"
+      ],
+      "status": "done",
+      "content": "Reserva inmediata evita que los pagos de college y la vacación consuman el colchón de reserva y da espacio para ejecutar reubicaciones de inversión sin urgencia"
+    },
+    {
+      "id": "task_2",
+      "title": "Agregar seguro de hogar en la propiedad primaria",
+      "short_description": "1) Localizar o solicitar cotizaciones online de su aseguradora actual (o portales rápidos)",
+      "detailed_description": "1) Localizar o solicitar cotizaciones online de su aseguradora actual (o portales rápidos). 2) Comparar límites y deducible con $900k de valor de reconstrucción. 3) Activar la póliza y confirmar fecha de inicio y recibo. 4) Guardar la póliza en sus documentos financieros.",
+      "category": "insurance",
+      "impact": "+2 pts",
+      "week": 1,
+      "steps": [
+        "Contactar a la aseguradora online o por teléfono y solicitar cotización para la dirección de la propiedad",
+        "Elegir cobertura que refleje valor de reconstrucción y confirmar prima anual (usar $4,500 como referencia)",
+        "Activar la póliza y guardar el comprobante en sus documentos"
+      ],
+      "status": "in_process",
+      "content": "1) Localizar o solicitar cotizaciones online de su aseguradora actual (o portales rápidos). 2) Comparar límites y deducible con $900k de valor de reconstrucción. 3) Activar la póliza y confirmar fecha de inicio y recibo. 4) Guardar la póliza en sus documentos financieros."
+    }
+  ]
+}

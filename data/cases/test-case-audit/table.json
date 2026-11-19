@@ -1,0 +1,129 @@
+{
+  "columns": [
+    "Ingresos",
+    "Gastos_Fijos",
+    "Ahorro_Libre",
+    "Deuda_Pendiente",
+    "Patrimonio",
+    "Viajes"
+  ],
+  "rows": [
+    {
+      "date": "2026-05",
+      "Ingresos": 0.0,
+      "Gastos_Fijos": 0.0,
+      "Ahorro_Libre": 0.0,
+      "Deuda_Pendiente": 0.0,
+      "Patrimonio": 0.0,
+      "Viajes": 500.0
+    },
+    {
+      "date": "2026-09",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 5000.0,
+      "Patrimonio": 4000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2026-10",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 5000.0,
+      "Patrimonio": 8000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2026-11",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 4750.0,
+      "Patrimonio": 12000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2026-12",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 4500.0,
+      "Patrimonio": 16000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-01",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 4250.0,
+      "Patrimonio": 20000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-02",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 4000.0,
+      "Patrimonio": 24000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-03",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 3750.0,
+      "Patrimonio": 28000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-04",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 3500.0,
+      "Patrimonio": 32000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-05",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 3250.0,
+      "Patrimonio": 36000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-06",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 3000.0,
+      "Patrimonio": 40000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-07",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 2750.0,
+      "Patrimonio": 44000.0,
+      "Viajes": 200.0
+    },
+    {
+      "date": "2027-08",
+      "Ingresos": 10000.0,
+      "Gastos_Fijos": 6000.0,
+      "Ahorro_Libre": 4000.0,
+      "Deuda_Pendiente": 2500.0,
+      "Patrimonio": 48000.0,
+      "Viajes": 200.0
+    }
+  ]
+}
