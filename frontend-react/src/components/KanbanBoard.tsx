@@ -114,6 +114,49 @@ const COLUMNS: { id: 'todo' | 'in_process' | 'done'; title: string; icon: React.
   { id: 'done', title: 'Completado', icon: <CheckCircle2 className="w-4 h-4 text-[#6e8c7b]" /> },
 ];
 
+/**
+ * Returns a clean, single concise impact metric without ugly semicolon soup.
+ */
+const formatImpactCompact = (impact?: string): string => {
+  if (!impact) return '';
+  const parts = impact.split(';').map(p => p.trim()).filter(Boolean);
+  return parts[0] || impact;
+};
+
+/**
+ * Renders structured impact in modal view with clean bullet points instead of semicolon clutter.
+ */
+const renderFormattedImpactDetail = (impact?: string) => {
+  if (!impact) return null;
+  const parts = impact.split(';').map(p => p.trim()).filter(Boolean);
+
+  if (parts.length <= 1) {
+    return (
+      <div className="mb-4 p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-medium flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        <span><strong className="font-semibold">Impacto estimado:</strong> {impact}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 p-3.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+        <Sparkles className="w-3.5 h-3.5" />
+        <span>Impacto Estimado</span>
+      </div>
+      <div className="space-y-1.5 pl-1">
+        {parts.map((part, idx) => (
+          <div key={idx} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+            <span className="leading-relaxed">{part}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   kanban,
   onArrangeCard,
@@ -322,7 +365,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <h4 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug">{immediateCard.title}</h4>
               {immediateCard.impact && (
                 <span className="inline-block text-[11px] font-semibold text-[#526e5e] dark:text-[#8ba898] mt-1">
-                  Impacto: {immediateCard.impact}
+                  Impacto: {formatImpactCompact(immediateCard.impact)}
                 </span>
               )}
             </div>
@@ -457,7 +500,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         {card.impact && (
                           <div className="mb-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#526e5e]/10 dark:bg-[#6e8c7b]/20 text-[#3d5a48] dark:text-[#a3c7b3] border border-[#526e5e]/20 dark:border-[#6e8c7b]/30">
                             <Sparkles className="w-3 h-3 text-[#526e5e] dark:text-[#8ba898]" />
-                            <span>{card.impact}</span>
+                            <span>{formatImpactCompact(card.impact)}</span>
                           </div>
                         )}
 
@@ -563,12 +606,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </button>
                       </div>
 
-                      {selectedCard.impact && (
-                        <div className="mb-4 p-3 rounded-2xl bg-[#526e5e]/10 dark:bg-[#6e8c7b]/20 border border-[#526e5e]/20 dark:border-[#6e8c7b]/30 flex items-center gap-2 text-[#3d5a48] dark:text-[#a3c7b3] font-semibold text-sm">
-                          <Sparkles className="w-4 h-4 text-[#875f52] dark:text-[#d8b4a0]" />
-                          <span>Impacto estimado: {selectedCard.impact}</span>
-                        </div>
-                      )}
+                      {renderFormattedImpactDetail(selectedCard.impact)}
 
                       {selectedCard.detailed_description && (
                         <div className="mb-5 text-sm text-slate-700 dark:text-slate-200 leading-relaxed liquid-glass-card p-4 rounded-2xl border border-black/5 dark:border-white/10">

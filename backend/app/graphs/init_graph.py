@@ -24,7 +24,7 @@ class SynthesizedCaseOutput(BaseModel):
     immediate_action_title: str = Field(description="La accion mas urgente que debe hacer hoy")
     immediate_action_reason: str = Field(description="Por que esta accion desbloquea su situacion")
     immediate_action_steps: list[str] = Field(description="Pasos exactos en 3 minutos")
-    immediate_action_impact: str = Field(description="Impacto cuantificado y emocional")
+    immediate_action_impact: str = Field(description="Impacto cuantificado conciso en una frase corta, ej: +$1,000 en liquidez. NUNCA uses punto y coma.")
     
     tasks: list[TaskItem] = Field(description="Lista de 4 a 6 tareas concretas para el frontend")
     weekly_roadmaps: list[WeeklyRoadmap] = Field(description="Guia de 3 a 4 semanas para estructurar la ejecucion")
@@ -83,7 +83,7 @@ REGLAS DE SHERPAS:
   * Categoria: Asignala estrictamente al campo `category` ('debt', 'savings', 'investment', 'insurance', 'lifestyle').
   * Semana: El campo `week` guarda el numero entero (1, 2, 3 o 4). NUNCA escribas 'Semana 1 - ' en el titulo ni en la descripcion.
   * Pasos: Se deben devolver como lista JSON de strings en `immediate_action_steps` y `steps`. NUNCA unas los pasos con barras '|'.
-  * Impacto: Debe expresarse de forma concisa y cuantificada en su respectivo campo de impacto (ej: '+$7,500/año', '+2 pts', '-$3,500').
+  * Impacto: Debe expresarse de forma muy concisa y directa (ej: '+$1,000 en liquidez', '+2 pts', '-$3,500'). NUNCA uses punto y coma ni concatenes parrafos largos.
 - ORTOGRAFIA: En tus respuestas o explicaciones en texto, responde siempre en castellano CON acentos y ortografia correcta."""
 
     human_content = f"""CASO: {case_id}
