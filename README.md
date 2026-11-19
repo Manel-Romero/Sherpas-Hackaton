@@ -51,41 +51,6 @@ Un plan financiero tradicional en PDF se queda obsoleto al primer imprevisto de 
 ```
 
 ---
-
-## 🚀 Despliegue en GitHub Pages: ¿Cómo Funciona?
-
-### ❓ ¿Tiene backend estando en GitHub Pages?
-**No.** GitHub Pages es un servicio de alojamiento **exclusivamente estático** (sirve HTML, CSS, JavaScript e imágenes). GitHub Pages no ejecuta servidores en segundo plano (ni Python, ni FastAPI, ni Docker).
-
-### 💡 ¿Cómo funciona la experiencia en GitHub Pages entonces?
-El frontend de este proyecto cuenta con **dos modos de funcionamiento**:
-
-1. **Modo Demo Interactivo / Offline (por defecto en GitHub Pages):**
-   * El cliente React detecta automáticamente si el backend no está disponible y activa el motor de datos local (`localStorage` + fixtures actuariales de los 4 casos: Michael Carter, Samantha Lewis, Timothy & Melanie Weah, Daniel & Emily Johnson).
-   * **Todo es interactivo:** Puedes arrastrar tarjetas en el Kanban, marcar tareas completadas, editar celdas de la tabla de proyecciones y recalcular gráficos en el navegador sin levantar ningún servidor.
-
-2. **Modo Conectado a Backend en Vivo:**
-   * Si despliegas el backend FastAPI en cualquier servicio cloud (Render, Railway, Fly.io, Hugging Face Spaces o tu propio VPS), o lo tienes corriendo en local:
-   * Puedes vincular la web de GitHub Pages con el backend simplemente pasando el parámetro `?api=`:
-     ```
-     https://<usuario>.github.io/Sherpas-Hackaton/?api=https://tu-backend.com
-     ```
-   * O configurando la variable de compilación `VITE_API_BASE_URL` en `frontend-react/.env.production`.
-
-### ⚙️ Cómo activar GitHub Pages en tu repositorio de GitHub (Paso a Paso)
-
-1. En tu repositorio de GitHub, entra en **Settings** > **Pages** (en el menú lateral izquierdo).
-2. En la sección **Build and deployment**:
-   * **Opción A (Recomendada - Despliegue Inmediato desde Rama):**
-     * **Source:** Selecciona `Deploy from a branch`.
-     * **Branch:** Selecciona `gh-pages` y la carpeta `/ (root)`.
-     * Haz clic en **Save**. En 1 minuto tendrás la web activa en:  
-       `https://<tu-usuario>.github.io/Sherpas-Hackaton/`
-   * **Opción B (Automática mediante GitHub Actions):**
-     * Si prefieres compilar directamente en la nube en cada push, la plantilla lista para usar se encuentra en `ci-cd-workflows/deploy-pages.yml`. Puedes moverla a `.github/workflows/` y seleccionar `GitHub Actions` como Source.
-
----
-
 ## 💻 Puesta en Marcha en Local (Quickstart en 2 Minutos)
 
 ### 1. Requisitos
@@ -617,3 +582,5 @@ Token counts differ across models, so these rates do not directly compare the co
 - **Backend:** the part of your app that runs on a computer or server, where keys stay private.
 - **Token / key:** a secret that proves who you are. Your MCP token is personal; the AI key is per team.
 - **`.env`:** a private file with your keys, loaded by your code and never committed.
+
+This is not AI slop.
