@@ -478,7 +478,7 @@ export const App: React.FC = () => {
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-5 flex flex-col">
           
           {/* Minimalist Floating Glass Navigation */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-start mb-5">
             <div className="flex items-center p-1 rounded-full liquid-glass gap-1 shadow-sm">
               <button
                 onClick={() => handleSelectTab('kanban')}
@@ -515,11 +515,6 @@ export const App: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-[#7d7568] dark:text-[#b0a89a]" />
                 <span>Asesor Co-Pilot</span>
               </button>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <span className="w-2 h-2 rounded-full bg-[#5eb87a] animate-pulse" />
-              <span>Living Financial Plan</span>
             </div>
           </div>
 

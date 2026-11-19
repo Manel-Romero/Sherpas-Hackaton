@@ -604,26 +604,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div className="px-5 py-3 border-b border-black/[0.04] dark:border-white/[0.06] bg-black/[0.015] dark:bg-white/[0.02] flex items-center justify-between gap-3">
         {/* Left: AI Advisory Mode Badge & Status */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#526e5e]/12 dark:bg-[#8ba898]/15 border border-[#526e5e]/20 dark:border-[#8ba898]/25 text-[#526e5e] dark:text-[#8ba898] shrink-0">
-            <Bot className="w-4 h-4" />
+          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 shrink-0">
+            <Bot className="w-3.5 h-3.5" />
           </div>
-          <div className="min-w-0">
-            <div className="text-xs font-semibold text-slate-900 dark:text-white font-display flex items-center gap-2">
-              <span className="truncate">Sherpas AI Wealth Advisory</span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-normal text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Asesor Activo
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-              Voz neuronal &bull; Dictamen Actuarial en Tiempo Real
-            </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-900 dark:text-white">Asesor Sherpas</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" title="Asesor conectado" />
           </div>
         </div>
 
         {/* Right: Quick Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Handover Report Modal Trigger */}
           <button
             type="button"
             onClick={() => {
@@ -633,39 +624,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                 setIsHandoverModalOpen(true);
               }
             }}
-            title="Ver Informe Ejecutivo de Entrega (Handover)"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold liquid-glass-interactive text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-xs"
+            title="Ver Informe de Entrega"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
           >
-            <FileText className="w-3.5 h-3.5 text-[#875f52] dark:text-[#b38a7c]" />
+            <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="hidden sm:inline">Informe Handover</span>
-          </button>
-
-          {/* Voice Input / Auto-Voice Toggle */}
-          <button
-            type="button"
-            onClick={toggleAutoVoice}
-            title={autoVoice ? "Desactivar lectura automática de respuestas" : "Activar lectura automática de respuestas (Modo Voz)"}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              autoVoice
-                ? 'bg-[#526e5e] text-white shadow-xs ring-2 ring-[#526e5e]/25 dark:bg-[#6e8c7b]'
-                : 'liquid-glass-interactive text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Headphones className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Modo Voz</span>
-            <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-semibold ${autoVoice ? 'bg-white/20' : 'bg-black/5 dark:bg-white/10'}`}>
-              {autoVoice ? 'ON' : 'OFF'}
-            </span>
-          </button>
-
-          {/* Sound FX Toggle */}
-          <button
-            type="button"
-            onClick={toggleSound}
-            title={soundEnabled ? "Silenciar efectos sonoros" : "Activar efectos sonoros"}
-            className="p-2 rounded-full liquid-glass-interactive text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
           </button>
         </div>
       </div>
