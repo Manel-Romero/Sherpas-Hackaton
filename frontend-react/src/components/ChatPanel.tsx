@@ -262,13 +262,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setShowScrollBottom(false);
   };
 
-  // Auto-expanding textarea height adjustments
+  // Auto-expanding textarea height adjustments (no layout shift or transition jitter)
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
+    if (!inputText.trim()) {
+      textarea.style.height = '44px';
+      return;
+    }
     textarea.style.height = 'auto';
-    const nextHeight = Math.min(textarea.scrollHeight, 140);
-    textarea.style.height = `${Math.max(44, nextHeight)}px`;
+    const nextHeight = Math.min(Math.max(textarea.scrollHeight, 44), 160);
+    textarea.style.height = `${nextHeight}px`;
   }, [inputText]);
 
   // Voice Mode Toggle
@@ -886,7 +890,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         )}
 
         <div className="flex items-end gap-2 sm:gap-3">
-          {/* Smooth auto-expanding textarea */}
+          {/* Smooth auto-expanding textarea with rock-solid height handling */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -907,7 +911,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   : 'Formula una consulta, dilema financiero o imprevisto al asesor... (Enter para enviar, Shift+Enter para nueva línea)'
               }
               disabled={isStreaming}
-              className="w-full resize-none px-4 sm:px-5 py-2.5 sm:py-3 text-sm bg-black/[0.03] dark:bg-white/[0.06] rounded-xl sm:rounded-2xl border border-black/10 dark:border-white/12 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#526e5e]/30 dark:focus:ring-[#8ba898]/40 focus:border-[#526e5e] dark:focus:border-[#8ba898] transition-all disabled:opacity-50 shadow-inner leading-relaxed min-h-[44px]"
+              style={{ minHeight: '44px', maxHeight: '160px' }}
+              className="w-full resize-none px-4 sm:px-5 py-2.5 sm:py-3 text-sm bg-black/[0.03] dark:bg-white/[0.06] rounded-xl sm:rounded-2xl border border-black/10 dark:border-white/12 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:focus:ring-emerald-400/25 focus:border-emerald-600/50 dark:focus:border-emerald-400/50 transition-colors duration-150 disabled:opacity-50 shadow-inner leading-relaxed block overflow-y-auto"
             />
           </div>
 
@@ -931,7 +936,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             type="submit"
             disabled={!inputText.trim() || isStreaming}
             title="Enviar consulta (Enter)"
-            className="flex items-center justify-center w-10 sm:w-11 h-10 sm:h-11 bg-[#526e5e] hover:bg-[#43594c] dark:bg-[#6e8c7b] dark:hover:bg-[#5b7566] text-white rounded-xl sm:rounded-2xl shadow-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            className="flex items-center justify-center w-10 sm:w-11 h-10 sm:h-11 bg-emerald-600/90 hover:bg-emerald-600 dark:bg-emerald-600/80 dark:hover:bg-emerald-500 text-white rounded-xl sm:rounded-2xl shadow-xs transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
