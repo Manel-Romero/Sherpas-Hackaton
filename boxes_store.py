@@ -1,15 +1,14 @@
-# Almacenamiento local de tarjetas y cajas de accion para la interfaz
-# Formato: {"boxes": [{"title": "...", "content": "...", "category": "..."}, ...]}
+# Local storage for action boxes and legacy task compatibility
+# Format: {"boxes": [{"title": "...", "content": "...", "category": "..."}, ...]}
 import json
 import os
 import threading
 from pathlib import Path
 
-BASE_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "cases"
+BASE_DATA_DIR = Path(__file__).resolve().parent / "data" / "cases"
 _lock = threading.Lock()
 
 def get_boxes_file(case_id: str = "michael-carter") -> Path:
-    # Obtiene la ruta del archivo de cajas aislado por caso
     custom_path = os.environ.get("BOXES_JSON")
     if custom_path:
         return Path(custom_path)
@@ -54,7 +53,6 @@ def clean(data: dict) -> dict:
             "impact": impact,
             "week": week,
             "steps": steps,
-            # Mantener 'content' como alias para compatibilidad retroactiva
             "content": description
         })
     return {"boxes": boxes}
@@ -103,6 +101,5 @@ def remove_box(title: str, case_id: str = "michael-carter") -> dict:
     return save(data, case_id)
 
 def version(case_id: str = "michael-carter") -> int:
-    # Marca de tiempo de modificacion para que el watcher de Streamlit detecte cambios
     boxes_file = get_boxes_file(case_id)
     return boxes_file.stat().st_mtime_ns if boxes_file.exists() else 0

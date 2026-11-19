@@ -2,7 +2,144 @@
   <img src="assets/banner.png" alt="Bring the plan to life. Sherpas x UPV Sigma Data Club, 12 to 19 November 2026" width="100%">
 </p>
 
-# Bring the plan to life
+# 🏔️ Sherpas Living Plan & Co-Pilot
+
+> **Solución para el Hackathon Sherpas x UPV Sigma Data Club (Noviembre 2026)**  
+> Transformando planes financieros estáticos de 60 páginas en una experiencia interactiva, viva, continua y accionable para las familias y sus asesores.
+
+[![FastAPI Backend](https://img.shields.io/badge/Backend-FastAPI%20%2B%20LangGraph-009688?logo=fastapi)](backend/)
+[![React Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20Tailwind-61DAFB?logo=react)](frontend-react/)
+[![GitHub Pages](https://img.shields.io/badge/Deployment-GitHub%20Pages%20Ready-success?logo=github)](https://github.com/Manel-Romero/Sherpas-Hackaton/tree/gh-pages)
+[![Test Suite](https://img.shields.io/badge/Tests-34%2F34%20Passing-brightgreen?logo=pytest)](tests/)
+
+---
+
+## 🌟 Visión del Producto
+
+Un plan financiero tradicional en PDF se queda obsoleto al primer imprevisto de la vida real. **Sherpas Living Plan** convierte ese informe estático en un sistema inteligente sincronizado en tiempo real:
+
+1. **Tablero Kanban Semanal de Victorias Rápidas:** Convierte recomendaciones actuariales complejas en micro-acciones claras con impacto cuantificado y guía paso a paso, visualizadas con auras cromáticas sutiles por categoría (ahorro, deuda, inversión, seguros).
+2. **Matriz Actuarial Reactiva:** Hoja de cálculo con proyección a 12-36 meses. Al editar cualquier celda o añadir imprevistos, los gráficos de patrimonio neto y flujo de caja se recalculan automáticamente.
+3. **Asesor Co-Pilot con Voz Neuronal:** Agente LangGraph conectado al protocolo MCP (Model Context Protocol). Permite simular escenarios what-if, dictar por voz, escuchar diagnósticos con audio neuronal y ejecutar modificaciones en la interfaz en vivo.
+4. **Onboarding Guiado & Diagnóstico Inicial:** Tutorial interactivo con selector de punto de partida (ejecutar primera tarea, consultar informe ejecutivo actuarial o explorar en libertad).
+
+---
+
+## 🏗️ Arquitectura Técnica
+
+```
+                    ┌──────────────────────────────────────────────┐
+                    │        Frontend (React 19 + TypeScript)      │
+                    │  Vite · Tailwind CSS · Framer Motion · Audio │
+                    │  Recharts · Cache Resiliente Offline         │
+                    └──────────────────────┬───────────────────────┘
+                                           │ HTTP REST / SSE / Voice
+                                           ▼
+                    ┌──────────────────────────────────────────────┐
+                    │         Backend API (Python 3.12 / FastAPI)  │
+                    │   /api/cases · /api/chat · /api/kanban       │
+                    │   /api/table · /api/simulation               │
+                    └──────────────┬───────────────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         ▼                         ▼                         ▼
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│ LangGraph Agent │      │  Actuarial Data │      │ Local MCP Tools │
+│ Tools Execution │      │  JSON Store     │      │ Case Retrieval  │
+│ Streaming Chat  │      │  (Data Layer)   │      │ AI Proxy LLMs   │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+---
+
+## 🚀 Despliegue en GitHub Pages: ¿Cómo Funciona?
+
+### ❓ ¿Tiene backend estando en GitHub Pages?
+**No.** GitHub Pages es un servicio de alojamiento **exclusivamente estático** (sirve HTML, CSS, JavaScript e imágenes). GitHub Pages no ejecuta servidores en segundo plano (ni Python, ni FastAPI, ni Docker).
+
+### 💡 ¿Cómo funciona la experiencia en GitHub Pages entonces?
+El frontend de este proyecto cuenta con **dos modos de funcionamiento**:
+
+1. **Modo Demo Interactivo / Offline (por defecto en GitHub Pages):**
+   * El cliente React detecta automáticamente si el backend no está disponible y activa el motor de datos local (`localStorage` + fixtures actuariales de los 4 casos: Michael Carter, Samantha Lewis, Timothy & Melanie Weah, Daniel & Emily Johnson).
+   * **Todo es interactivo:** Puedes arrastrar tarjetas en el Kanban, marcar tareas completadas, editar celdas de la tabla de proyecciones y recalcular gráficos en el navegador sin levantar ningún servidor.
+
+2. **Modo Conectado a Backend en Vivo:**
+   * Si despliegas el backend FastAPI en cualquier servicio cloud (Render, Railway, Fly.io, Hugging Face Spaces o tu propio VPS), o lo tienes corriendo en local:
+   * Puedes vincular la web de GitHub Pages con el backend simplemente pasando el parámetro `?api=`:
+     ```
+     https://<usuario>.github.io/Sherpas-Hackaton/?api=https://tu-backend.com
+     ```
+   * O configurando la variable de compilación `VITE_API_BASE_URL` en `frontend-react/.env.production`.
+
+### ⚙️ Cómo activar GitHub Pages en tu repositorio de GitHub (Paso a Paso)
+
+1. En tu repositorio de GitHub, entra en **Settings** > **Pages** (en el menú lateral izquierdo).
+2. En la sección **Build and deployment**:
+   * **Opción A (Recomendada - Despliegue Inmediato desde Rama):**
+     * **Source:** Selecciona `Deploy from a branch`.
+     * **Branch:** Selecciona `gh-pages` y la carpeta `/ (root)`.
+     * Haz clic en **Save**. En 1 minuto tendrás la web activa en:  
+       `https://<tu-usuario>.github.io/Sherpas-Hackaton/`
+   * **Opción B (Automática mediante GitHub Actions):**
+     * Si prefieres compilar directamente en la nube en cada push, la plantilla lista para usar se encuentra en `ci-cd-workflows/deploy-pages.yml`. Puedes moverla a `.github/workflows/` y seleccionar `GitHub Actions` como Source.
+
+---
+
+## 💻 Puesta en Marcha en Local (Quickstart en 2 Minutos)
+
+### 1. Requisitos
+* Python 3.12 o 3.13
+* Node.js 20+ y npm
+
+### 2. Configurar Entorno
+```bash
+# Clonar repositorio
+git clone https://github.com/Manel-Romero/Sherpas-Hackaton.git
+cd Sherpas-Hackaton
+
+# Entorno virtual de Python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Configurar claves de acceso
+cp .env.example .env
+# Añade tu TEAM_KEY y MCP_TOKEN en .env
+```
+
+### 3. Ejecutar la Aplicación
+
+**Opción A: Ejecución Unificada (FastAPI sirve el Backend y la SPA React compilada en el puerto 8000)**
+```bash
+# 1. Compilar el frontend
+cd frontend-react && npm install && npm run build && cd ..
+
+# 2. Iniciar servidor FastAPI
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+Abre en tu navegador: **[http://localhost:8000](http://localhost:8000)**
+
+**Opción B: Modo Desarrollo con Hot-Reload (Vite + FastAPI)**
+```bash
+# Terminal 1: Backend FastAPI
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2: Frontend Vite
+cd frontend-react
+npm run dev
+```
+Abre en tu navegador: **[http://localhost:3000](http://localhost:3000)**
+
+### 4. Tests Automatizados
+```bash
+pytest tests/ -v
+# 34 tests unitarios y de integracion pasando al 100%
+```
+
+---
+
+# Brief Original del Hackathon
 
 **Sherpas x UPV Sigma Data Club hackathon, 12 to 19 November 2026**
 

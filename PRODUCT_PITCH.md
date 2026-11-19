@@ -58,7 +58,7 @@ El agente toma en cuenta el perfil psicologico y las tensiones documentadas en e
 - Facilita la mediacion en casos familiares con diferente aversion al riesgo (como Timothy y Melanie Weah).
 
 ### Rigor tecnico y viabilidad
-La arquitectura backend esta desarrollada con FastAPI y LangGraph, desacoplando la gestion de datos de la interfaz. Es profesional, prototipable en tiempo de Hackaton pero tambien escalable. El frontend esta disenado en Streamlit, una UI sencilla. funcional y modular con respecto al backend. Permitiendo una migracion a react u otras alternativas sin modificar el resto de la aplicacion.
+La arquitectura backend esta desarrollada con FastAPI y LangGraph, desacoplando la logica actuarial de la interfaz. El frontend esta desarrollado en React 19 + TypeScript + Vite + Tailwind CSS + Framer Motion, con renderizado fluido, soporte de voz neuronal en tiempo real y modo demo resiliente con cache offline. Permite tanto ejecucion local como despliegue estatico en GitHub Pages.
 
 ---
 

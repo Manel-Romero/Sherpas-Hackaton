@@ -55,17 +55,6 @@ npm run dev
 
 ---
 
-### Opcion C (Frontend Historico en Streamlit)
-Si deseas consultar el prototipo legacy basado en Streamlit:
-
-```bash
-source .venv/bin/activate
-streamlit run frontend/app.py
-```
-- **Streamlit Web:** [http://localhost:8501](http://localhost:8501)
-
----
-
 ## 3. Comprobacion Rapida del Estado
 
 Para verificar en un segundo que ambos servicios responden correctamente:

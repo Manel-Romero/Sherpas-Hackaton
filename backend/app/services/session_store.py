@@ -71,7 +71,7 @@ class SessionData:
         sc = 50
 
         try:
-            from frontend import table_store as ts
+            import table_store as ts
             tb = ts.load(case_id=self.case_id)
             if tb.get("rows"):
                 r0 = tb["rows"][0]

@@ -134,7 +134,7 @@ def update_dashboard_metric(
         # Sincronizar tambien con la tabla de proyeccion si es ingreso o gasto
         if norm_key in ("monthly_income", "monthly_expenses"):
             try:
-                from frontend import table_store as ts
+                import table_store as ts
                 data = ts.load(case_id=case_id)
                 col_name = "Ingresos" if norm_key == "monthly_income" else "Gastos_Fijos"
                 if col_name in data.get("columns", []):
@@ -206,7 +206,7 @@ def get_table(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         data = ts.load(case_id=case_id)
         return json.dumps(data, indent=2, ensure_ascii=False)
     except Exception as e:
@@ -228,7 +228,7 @@ def modify_table_cell(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         # Salvaguarda: si se confunde cuota mensual con saldo total de deuda
         if column == "Deuda_Pendiente" and 0 < value < 2000:
             cur = ts.load(case_id=case_id)
@@ -258,7 +258,7 @@ def set_cell(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         # Salvaguarda: si se confunde cuota mensual con saldo total de deuda
         if column == "Deuda_Pendiente" and 0 < value < 2000:
             cur = ts.load(case_id=case_id)
@@ -281,7 +281,7 @@ def set_cells(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.set_cells(updates, case_id=case_id)
         return f"{len(updates)} celdas actualizadas con exito en la tabla mensual."
     except Exception as e:
@@ -297,7 +297,7 @@ def set_row(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.set_row(date, values, case_id=case_id)
         return f"Fila del mes {date} actualizada con exito en la tabla mensual."
     except Exception as e:
@@ -312,7 +312,7 @@ def delete_row(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.delete_row(date, case_id=case_id)
         return f"Fila del mes {date} eliminada de la tabla mensual."
     except Exception as e:
@@ -329,7 +329,7 @@ def set_cell_formula(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         data = ts.set_cell_formula(date, column, formula, case_id=case_id)
         res_val = 0.0
         for r in data.get("rows", []):
@@ -364,7 +364,7 @@ def apply_column_formula(
     session = _get_session_from_config(config)
 
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         tb_data = ts.apply_column_formula(
             column=column,
             formula=formula,
@@ -434,7 +434,7 @@ def register_loan_and_amortization(
     session = _get_session_from_config(config)
 
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         data = ts.load(case_id=case_id)
         rows = data.get("rows", [])
         if not rows:
@@ -511,7 +511,7 @@ def evaluate_formula(
 ) -> str:
     """Calcula y evalua cualquier formula o expresion matematica/financiera estilo Excel (ej: '15000 * (1.10 ** 12)', 'PV * (1 + 0.07)**10', etc.)."""
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ctx = dict(variables or {})
         result = ts.evaluate_formula(expression, ctx)
         return f"Resultado de '{expression}': {result:,.2f}"
@@ -530,7 +530,7 @@ def spreadsheet_aggregate(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         res = ts.spreadsheet_aggregate(column, operation, start_date, end_date, case_id=case_id)
         return f"Agregacion {operation.upper()} en columna '{column}': {res:,.2f}"
     except Exception as e:
@@ -547,7 +547,7 @@ def add_table_column(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.add_column(name, default, formula=formula, case_id=case_id)
         if formula:
             return f"Columna '{name}' anadida y calculada con formula '{formula}' en la tabla mensual."
@@ -566,7 +566,7 @@ def add_column(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.add_column(name, default, formula=formula, case_id=case_id)
         if formula:
             return f"Columna '{name}' anadida y calculada con formula '{formula}' en la tabla mensual."
@@ -583,7 +583,7 @@ def delete_column(
     configurable = config.get("configurable", {}) if config else {}
     case_id = configurable.get("case_id", "michael-carter")
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         ts.delete_column(name, case_id=case_id)
         return f"Columna '{name}' eliminada de la tabla mensual."
     except Exception as e:
@@ -681,7 +681,7 @@ def manage_box(
     s_desc = short_description or (desc[:120] if len(desc) > 120 else desc)
     norm_cat = "immediate" if category == "prioritaria" else category
     try:
-        from frontend import boxes_store as bs
+        import boxes_store as bs
         import kanban_store as ks
         ks.set_case(case_id)
         if action in ("add", "update"):
@@ -787,7 +787,7 @@ def project_growth(
     session = _get_session_from_config(config)
 
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         tb_data = ts.load(case_id=case_id)
         cols = list(tb_data.get("columns", []))
         rows = tb_data.get("rows", [])

@@ -206,8 +206,8 @@ def persist_session_node(state: CaseInitState) -> CaseInitState:
 
     # Sincronizar almacenamiento local para la interfaz de Streamlit (tabla mensual y cajas)
     try:
-        from frontend import table_store as ts
-        from frontend import boxes_store as bs
+        import table_store as ts
+        import boxes_store as bs
 
         # 1. Inicializar la hoja de calculo mensual a 12 meses
         if state.get("dashboard_initial"):

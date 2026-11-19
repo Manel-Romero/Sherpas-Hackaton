@@ -134,7 +134,7 @@ def test_modify_table_cell_and_add_column_tools(tmp_path, monkeypatch):
     table_file = tmp_path / "table.json"
     monkeypatch.setenv("TABLE_JSON", str(table_file))
 
-    from frontend import table_store as ts
+    import table_store as ts
     # Inicializar tabla de prueba
     ts.initialize_default_table(
         case_id=test_case,
@@ -186,7 +186,7 @@ def test_manage_box_tool(tmp_path, monkeypatch):
     }, config=config)
 
     assert "guardada en el panel vertical" in res_add
-    from frontend import boxes_store as bs
+    import boxes_store as bs
     data = bs.load(case_id=test_case)
     assert len(data["boxes"]) == 1
     assert data["boxes"][0]["title"] == "Fondo de Emergencia Requerido"
@@ -226,7 +226,7 @@ def test_audit_logger_and_additional_tools(tmp_path, monkeypatch):
     monkeypatch.setenv("TABLE_JSON", str(t_file))
     monkeypatch.setenv("KANBAN_JSON", str(k_file))
 
-    from frontend import table_store as ts
+    import table_store as ts
     import kanban_store as ks
     ts.initialize_default_table(test_case, 10000.0, 6000.0, 5000.0, 80000.0)
     ks.set_case(test_case)
@@ -282,7 +282,7 @@ def test_open_excel_tools(tmp_path, monkeypatch):
         set_cell,
         get_table,
     )
-    from frontend import table_store as ts
+    import table_store as ts
 
     test_case = "test-case-excel"
     t_file = tmp_path / "table.json"
@@ -443,7 +443,7 @@ async def test_generate_advisor_report_tool():
 
 def test_register_loan_and_amortization_tool():
     from backend.app.tools.copilot_tools import register_loan_and_amortization
-    from frontend import table_store as ts
+    import table_store as ts
     import shutil
     import os
 

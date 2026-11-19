@@ -303,7 +303,7 @@ async def build_system_prompt(session_id: str, case_id: str) -> str:
     # Estado actual y valores de la matriz de proyeccion mensual (table_store)
     table_info_str = "No disponible"
     try:
-        from frontend import table_store as ts
+        import table_store as ts
         tb_data = ts.load(case_id=case_id)
         tb_cols = tb_data.get("columns", [])
         tb_rows = tb_data.get("rows", [])
@@ -592,8 +592,8 @@ async def audit_tools_node(state: CopilotState, config: Optional[RunnableConfig]
 
     tool_messages = []
     if last_message and hasattr(last_message, "tool_calls") and last_message.tool_calls:
-        from frontend import table_store as ts
-        from frontend import boxes_store as bs
+        import table_store as ts
+        import boxes_store as bs
         import kanban_store as ks
 
         for tc in last_message.tool_calls:
