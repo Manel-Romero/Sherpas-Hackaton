@@ -3,6 +3,7 @@ import {
   ChevronDown,
   RotateCcw,
   Compass,
+  HelpCircle,
   Sun,
   Moon
 } from 'lucide-react';
@@ -29,7 +30,8 @@ export const Header: React.FC<HeaderProps> = ({
   onResetPlan,
   isInitializing,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  onOpenTutorial
 }) => {
   const activeCase = cases.find(c => c.id === activeCaseId) || cases[0];
   const score = activeCase?.score ?? 0;
@@ -78,8 +80,20 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right: Score, Theme & Recalculate */}
+        {/* Right: Tutorial, Score, Theme & Recalculate */}
         <div className="flex items-center gap-2">
+          {/* Tutorial Button */}
+          {onOpenTutorial && (
+            <button
+              onClick={onOpenTutorial}
+              title="Ver tutorial"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white rounded-full bg-black/[0.03] dark:bg-white/[0.05] border border-zinc-200/70 dark:border-white/[0.06] transition-colors cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Tutorial</span>
+            </button>
+          )}
+
           {/* Health Score Pill */}
           <div 
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-black/[0.03] dark:bg-white/[0.05] border border-zinc-200/70 dark:border-white/[0.06]"
