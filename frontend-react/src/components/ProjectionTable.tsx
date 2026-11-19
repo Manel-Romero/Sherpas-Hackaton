@@ -195,7 +195,7 @@ export const ProjectionTable: React.FC<ProjectionTableProps> = ({
             </div>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 lg:h-80 xl:h-96 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                 <defs>

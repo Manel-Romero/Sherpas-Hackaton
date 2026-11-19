@@ -167,7 +167,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 10 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl liquid-glass-elevated shadow-2xl overflow-hidden z-10 border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#090d0b]/95 backdrop-blur-2xl text-slate-900 dark:text-slate-100 font-sans"
+          className="relative w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] flex flex-col rounded-3xl liquid-glass-elevated shadow-2xl overflow-hidden z-10 border border-black/10 dark:border-white/10 bg-white/95 dark:bg-[#090d0b]/95 backdrop-blur-2xl text-slate-900 dark:text-slate-100 font-sans"
         >
           {/* Minimalist Clean Header */}
           <div className="px-6 py-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between gap-4">

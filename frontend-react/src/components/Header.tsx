@@ -45,8 +45,8 @@ export const Header: React.FC<HeaderProps> = ({
   const status = getScoreBadge(score);
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-[#070b09]/80 border-b border-zinc-200/70 dark:border-white/[0.06] px-4 lg:px-8 py-2.5 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-[#070b09]/80 border-b border-zinc-200/70 dark:border-white/[0.06] px-4 sm:px-6 lg:px-8 xl:px-12 py-2.5 transition-colors duration-300">
+      <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-4">
         
         {/* Brand */}
         <div className="flex items-center gap-2.5">

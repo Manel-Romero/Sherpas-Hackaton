@@ -707,7 +707,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               key={m.id}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-3 max-w-3xl ${isUser ? 'ml-auto justify-end' : 'mr-auto justify-start'}`}
+              className={`flex gap-3 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl ${isUser ? 'ml-auto justify-end' : 'mr-auto justify-start'}`}
             >
               {!isUser && (
                 <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#526e5e]/12 dark:bg-[#8ba898]/15 border border-[#526e5e]/20 dark:border-[#8ba898]/25 text-[#526e5e] dark:text-[#8ba898] shrink-0 mt-0.5">
@@ -822,7 +822,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex gap-3 max-w-3xl mr-auto justify-start"
+            className="flex gap-3 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mr-auto justify-start"
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#526e5e]/12 dark:bg-[#8ba898]/15 border border-[#526e5e]/20 dark:border-[#8ba898]/25 text-[#526e5e] dark:text-[#8ba898] shrink-0 mt-0.5">
               <Bot className="w-4 h-4" />

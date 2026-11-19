@@ -239,14 +239,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors font-display">
-                          Empezar por la primera tarea
-                        </span>
-                        <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                          Recomendado
-                        </span>
-                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors font-display">
+                        Empezar por la primera tarea
+                      </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         Abre tu Plan de Acción y comienza a ejecutar la primera prioridad recomendada.
                       </p>
@@ -269,14 +264,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#875f52] dark:group-hover:text-[#d8b4a0] transition-colors font-display">
-                          Consultar mi estado inicial
-                        </span>
-                        <span className="text-[10px] font-semibold text-[#875f52] dark:text-[#d8b4a0] bg-[#875f52]/10 dark:bg-[#875f52]/20 px-2 py-0.5 rounded-full border border-[#875f52]/20">
-                          Diagnóstico
-                        </span>
-                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#875f52] dark:group-hover:text-[#d8b4a0] transition-colors font-display">
+                        Consultar mi estado inicial
+                      </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         Revisa tu informe ejecutivo con el score actuarial, pilares y brechas de tu expediente.
                       </p>
@@ -299,14 +289,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
                       <Compass className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors font-display">
-                          Permíteme explorar la app por mi cuenta
-                        </span>
-                        <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-500/10 dark:bg-slate-400/20 px-2 py-0.5 rounded-full border border-slate-500/20">
-                          Modo Libre
-                        </span>
-                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors font-display">
+                        Permíteme explorar la app por mi cuenta
+                      </h4>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         Cierra el tutorial y navega libremente por tus proyecciones, tareas y el asesor Co-Pilot.
                       </p>
