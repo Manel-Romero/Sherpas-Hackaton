@@ -408,6 +408,102 @@ def apply_column_formula(
         return f"Error aplicando formula en columna: {str(e)}"
 
 @tool
+def register_loan_and_amortization(
+    debt_name: str,
+    principal: float,
+    start_date: str,
+    target_payoff_date: str,
+    monthly_payment: Optional[float] = None,
+    config: RunnableConfig = None
+) -> str:
+    """Registra y planifica la amortizacion de un prestamo o deuda en el dashboard y tabla mensual.
+    
+    Inicia la deuda exactamente en el mes especificado (sin alterar meses pasados),
+    calcula la cuota fija mensual requerida para extinguirla, reduce la deuda mes a mes
+    hasta dejarla a cero en la fecha objetivo, y actualiza las metricas y graficos correspondientes.
+    
+    Args:
+        debt_name: Nombre o concepto del prestamo o deuda (ej: 'Prestamo Imprevisto').
+        principal: Importe total del prestamo o deuda (ej: 20000.0).
+        start_date: Mes de inicio en formato YYYY-MM (ej: '2026-11'). Meses anteriores no se tocan.
+        target_payoff_date: Mes objetivo para que la deuda llegue a 0 en formato YYYY-MM (ej: '2027-03').
+        monthly_payment: Opcional. Cuota fija mensual. Si no se pasa, se calcula dividiendo el principal entre los meses hasta el objetivo.
+    """
+    configurable = config.get("configurable", {}) if config else {}
+    case_id = configurable.get("case_id", "michael-carter")
+    session = _get_session_from_config(config)
+
+    try:
+        from frontend import table_store as ts
+        data = ts.load(case_id=case_id)
+        rows = data.get("rows", [])
+        if not rows:
+            return "Error: la tabla mensual no tiene filas disponibles."
+
+        norm_start = ts.normalize_date(start_date)
+        norm_target = ts.normalize_date(target_payoff_date)
+
+        sy, sm = int(norm_start.split("-")[0]), int(norm_start.split("-")[1])
+        ty, tm = int(norm_target.split("-")[0]), int(norm_target.split("-")[1])
+        num_months = (ty - sy) * 12 + (tm - sm) + 1
+        if num_months <= 0:
+            return f"Error: la fecha objetivo ({target_payoff_date}) debe ser posterior o igual a la de inicio ({start_date})."
+
+        quota = float(monthly_payment) if (monthly_payment and monthly_payment > 0) else round(float(principal) / num_months, 2)
+
+        existing_dates = [r.get("date") for r in rows]
+        last_date = existing_dates[-1] if existing_dates else norm_start
+        ly, lm = int(last_date.split("-")[0]), int(last_date.split("-")[1])
+        while (ly < ty) or (ly == ty and lm < tm):
+            lm += 1
+            if lm > 12:
+                lm = 1
+                ly += 1
+            ts.add_next_month(case_id=case_id)
+            data = ts.load(case_id=case_id)
+            rows = data.get("rows", [])
+
+        rem = float(principal)
+        chart_labels = []
+        chart_values = []
+
+        for r in rows:
+            d = r.get("date")
+            chart_labels.append(d)
+            if d < norm_start:
+                chart_values.append(float(r.get("Deuda_Pendiente", 0.0)))
+            elif d <= norm_target:
+                rem = max(0.0, round(rem - quota, 2))
+                if d == norm_target:
+                    rem = 0.0
+                r["Deuda_Pendiente"] = rem
+                chart_values.append(rem)
+            else:
+                r["Deuda_Pendiente"] = 0.0
+                chart_values.append(0.0)
+
+        ts.save(data, case_id=case_id)
+        session.update_dashboard_metric("debt_balance", float(principal), reason=f"Inicio prestamo {debt_name}")
+
+        session.pending_charts.append({
+            "type": "line",
+            "title": f"Amortizacion {debt_name}: Cuota ${quota:,.2f}/mes hasta {norm_target}",
+            "labels": chart_labels,
+            "categories": chart_labels,
+            "values": chart_values
+        })
+
+        return (
+            f"Prestamo '{debt_name}' de ${principal:,.2f} registrado con exito.\n"
+            f"- Periodo: {norm_start} a {norm_target} ({num_months} meses)\n"
+            f"- Cuota fija de amortizacion: ${quota:,.2f}/mes\n"
+            f"- Saldo extinguido a $0.00 en {norm_target}\n"
+            f"- Meses anteriores a {norm_start} conservados intactos sin deuda ficticia."
+        )
+    except Exception as e:
+        return f"Error registrando prestamo y amortizacion: {str(e)}"
+
+@tool
 def evaluate_formula(
     expression: str,
     variables: Optional[dict[str, float]] = None,
@@ -1066,6 +1162,7 @@ ALL_COPILOT_TOOLS = [
     move_kanban_card,
     delete_kanban_card,
     project_growth,
+    register_loan_and_amortization,
     simulate_scenario,
     generate_advisor_report_tool,
     financial_calculator,

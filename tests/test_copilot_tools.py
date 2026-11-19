@@ -441,5 +441,67 @@ async def test_generate_advisor_report_tool():
     assert "Preguntas clave preparadas" in res
 
 
+def test_register_loan_and_amortization_tool():
+    from backend.app.tools.copilot_tools import register_loan_and_amortization
+    from frontend import table_store as ts
+    import shutil
+    import os
+
+    test_case = "test-loan-amort"
+    file_path = ts.set_case(test_case)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    # Initialize table with 0 debt for 2026-09 and 2026-10
+    init_data = {
+        "columns": ["date", "Ingresos", "Gastos_Fijos", "Ahorro_Libre", "Deuda_Pendiente", "Patrimonio"],
+        "rows": [
+            {"date": "2026-09", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 100000.0},
+            {"date": "2026-10", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 104000.0},
+            {"date": "2026-11", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 108000.0},
+            {"date": "2026-12", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 112000.0},
+            {"date": "2027-01", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 116000.0},
+            {"date": "2027-02", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 120000.0},
+            {"date": "2027-03", "Ingresos": 10000.0, "Gastos_Fijos": 6000.0, "Ahorro_Libre": 4000.0, "Deuda_Pendiente": 0.0, "Patrimonio": 124000.0},
+        ]
+    }
+    ts.save(init_data, case_id=test_case)
+
+    config = RunnableConfig(configurable={"session_id": "s_loan_test", "case_id": test_case})
+    session = session_store.get_or_create("s_loan_test", test_case)
+
+    # Register $20,000 loan starting in Nov 2026 to be paid off by March 2027 (5 months)
+    res = register_loan_and_amortization.invoke({
+        "debt_name": "Prestamo Imprevisto",
+        "principal": 20000.0,
+        "start_date": "2026-11",
+        "target_payoff_date": "2027-03"
+    }, config=config)
+
+    assert "Prestamo 'Prestamo Imprevisto' de $20,000.00 registrado con exito" in res
+    assert "Cuota fija de amortizacion: $4,000.00/mes" in res
+    assert "Saldo extinguido a $0.00 en 2027-03" in res
+
+    # Verify table rows
+    saved = ts.load(case_id=test_case)
+    rows_by_date = {r["date"]: r for r in saved["rows"]}
+
+    # Past months must be untouched
+    assert rows_by_date["2026-09"]["Deuda_Pendiente"] == 0.0
+    assert rows_by_date["2026-10"]["Deuda_Pendiente"] == 0.0
+
+    # Amortization progression
+    assert rows_by_date["2026-11"]["Deuda_Pendiente"] == 16000.0
+    assert rows_by_date["2026-12"]["Deuda_Pendiente"] == 12000.0
+    assert rows_by_date["2027-01"]["Deuda_Pendiente"] == 8000.0
+    assert rows_by_date["2027-02"]["Deuda_Pendiente"] == 4000.0
+    assert rows_by_date["2027-03"]["Deuda_Pendiente"] == 0.0
+
+    # Clean up test file
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
+
 
 

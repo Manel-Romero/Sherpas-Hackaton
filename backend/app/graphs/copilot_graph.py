@@ -402,14 +402,21 @@ El usuario tiene delante una aplicacion ejecutiva de finanzas generativas compue
      * 'Gastos_Fijos': Suma de gastos mensuales de vida, vivienda y cuotas regulares de amortizacion de deudas (ej: $9,306/mes).
        Si el cliente decide reducir un gasto (ej: mudanza a alquiler mas barato de -$500), 'Gastos_Fijos' baja a $8,806/mes.
      * 'Ahorro_Libre': Flujo de caja libre mensual = 'Ingresos - Gastos_Fijos' (ej: $5,694/mes). Es el excedente disponible para ahorro, inversion o amortizaciones anticipadas. Se calcula dinamicamente.
-     * 'Deuda_Pendiente': ¡ATENCION CRITICA! ES EL SALDO TOTAL DE LA DEUDA VIVA ACUMULADA (ej: $28,500 en total).
-       > REGLA DE ORO OBLIGATORIA: 'Deuda_Pendiente' NO ES UNA CUOTA MENSUAL NI EL PAGO DE UNA TARJETA.
-       > Es el importe total pendiente de liquidar con los acreedores.
-       > Si el usuario dice "aumentemos el pago de la tarjeta Amex a $400/mes", NUNCA pongas 'Deuda_Pendiente = 400'. Poner 400 borraria erroneamente $28,000 de deuda viva.
-       > Lo correcto cuando el cliente aumenta o define una cuota mensual de amortizacion:
-         Opción A: La deuda viva total disminuye progresivamente mes a mes por la cuota pagada. Usa `apply_column_formula(column='Deuda_Pendiente', formula='max(0, prev - 400)')` o actualiza la serie con `set_cells`.
-         Opción B: Si es un pago extra sobre el presupuesto habitual, anade una columna especifica con `add_column(name='Amortizacion_Amex', default_value=400)`.
-         Opción C: Si el cliente amortiza de golpe un importe puntual (ej: desembolso de $2,000 de bonus para liquidar deuda), reduce el saldo de 'Deuda_Pendiente' en $2,000 desde ese mes.
+      * 'Deuda_Pendiente': !ATENCION CRITICA! ES EL SALDO TOTAL DE LA DEUDA VIVA ACUMULADA.
+        > REGLA DE ORO OBLIGATORIA: 'Deuda_Pendiente' NO ES UNA CUOTA MENSUAL NI EL PAGO DE UNA TARJETA.
+        > Es el importe total pendiente de liquidar con los acreedores.
+        > PROTOCOLO DE PRESTAMOS Y AMORTIZACIONES:
+          1. Cuando el cliente hable de contraer un prestamo, una nueva deuda o amortizar una deuda existente:
+             - La deuda DEBE INICIAR (o incrementarse) estrictamente en el mes en que ocurre (start_date).
+             - NUNCA alteres ni pongas deuda en los meses anteriores; los meses previos deben conservar intacto su valor real o 0.0.
+          2. Si el cliente indica que va a saldar o liquidar la deuda en un mes objetivo (target_payoff_date) o con una cuota mensual:
+             - USA SIEMPRE la herramienta dedicada: `register_loan_and_amortization(debt_name, principal, start_date, target_payoff_date, monthly_payment)`.
+             - La cuota fija se calcula como principal / num_meses (ej: $20,000 entre 5 meses de Noviembre a Marzo = $4,000/mes).
+             - Al llegar a target_payoff_date la deuda queda exactamente en $0.00 y se mantiene a $0.00 en meses posteriores.
+             - La herramienta actualiza el balance de deuda del dashboard y genera el grafico de evolucion de la amortizacion.
+          3. Si el cliente habla de una deuda pero no especifica la fecha limite ni la cuota:
+             - PREGUNTA con precision en cuantos meses o con que cuota mensual desea liquidarla, o proponle una cuota viable basada en su 'Ahorro_Libre' mensual antes de modificar nada a ciegas.
+          4. NUNCA uses `apply_column_formula` sobre toda la columna si eso modifica retroactivamente los meses pasados en los que la deuda aun no existia.
      * 'Patrimonio': PATRIMONIO NETO TOTAL (Net Worth). Saldo patrimonial neto del cliente (Activos - Pasivos). Crece acumulando mes a mes el 'Ahorro_Libre'.
 
 4. PESTANA 3: "Asesor Co-Pilot" (TERMINAL ESTRATEGICA CONVERSACIONAL):
