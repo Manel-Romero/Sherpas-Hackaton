@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -10,13 +10,17 @@ import {
   LineChart, 
   Sparkles,
   Mic,
-  Volume2
+  Volume2,
+  FileText
 } from 'lucide-react';
 import { audioService } from '../services/audioService';
 
 interface TutorialModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onStartFirstTask?: () => void;
+  onViewInitialStatus?: () => void;
+  onExploreFreely?: () => void;
 }
 
 const STEPS = [
@@ -105,11 +109,32 @@ const STEPS = [
         </div>
       </div>
     )
+  },
+  {
+    icon: Sparkles,
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    tag: 'SIGUIENTES PASOS',
+    title: '¿Cómo prefieres comenzar?',
+    subtitle: 'Elige el punto de partida que mejor se adapte a tu momento actual',
+    isActionStep: true,
+    body: null
   }
 ];
 
-export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
+export const TutorialModal: React.FC<TutorialModalProps> = ({ 
+  isOpen, 
+  onClose,
+  onStartFirstTask,
+  onViewInitialStatus,
+  onExploreFreely
+}) => {
   const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStep(0);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -121,7 +146,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
   const handleNext = () => {
     audioService.playSound('click');
     if (isLast) {
-      onClose();
+      if (onExploreFreely) onExploreFreely();
+      else onClose();
       setStep(0);
     } else {
       setStep(prev => prev + 1);
@@ -196,8 +222,102 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
           </div>
 
           {/* Body Content */}
-          <div className="min-h-[160px] py-1">
-            {current.body}
+          <div className="min-h-[170px] py-1">
+            {current.isActionStep ? (
+              <div className="space-y-2.5">
+                {/* Option 1: Empezar por la primera tarea */}
+                <button
+                  onClick={() => {
+                    audioService.playSound('click');
+                    if (onStartFirstTask) onStartFirstTask();
+                    else onClose();
+                  }}
+                  className="w-full text-left p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 border border-black/[0.06] dark:border-white/10 hover:border-emerald-500/30 transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shrink-0 group-hover:scale-105 transition-transform">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors font-display">
+                          Empezar por la primera tarea
+                        </span>
+                        <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Abre tu Plan de Acción y comienza a ejecutar la primera prioridad recomendada.
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                </button>
+
+                {/* Option 2: Consultar mi estado inicial */}
+                <button
+                  onClick={() => {
+                    audioService.playSound('click');
+                    if (onViewInitialStatus) onViewInitialStatus();
+                    else onClose();
+                  }}
+                  className="w-full text-left p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#875f52]/10 dark:hover:bg-[#b38a7c]/15 border border-black/[0.06] dark:border-white/10 hover:border-[#875f52]/30 transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-[#875f52]/15 text-[#875f52] dark:text-[#d8b4a0] shrink-0 group-hover:scale-105 transition-transform">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-[#875f52] dark:group-hover:text-[#d8b4a0] transition-colors font-display">
+                          Consultar mi estado inicial
+                        </span>
+                        <span className="text-[10px] font-semibold text-[#875f52] dark:text-[#d8b4a0] bg-[#875f52]/10 dark:bg-[#875f52]/20 px-2 py-0.5 rounded-full border border-[#875f52]/20">
+                          Diagnóstico
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Revisa tu informe ejecutivo con el score actuarial, pilares y brechas de tu expediente.
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#875f52] dark:group-hover:text-[#d8b4a0] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                </button>
+
+                {/* Option 3: Permíteme explorar la app por mi cuenta */}
+                <button
+                  onClick={() => {
+                    audioService.playSound('click');
+                    if (onExploreFreely) onExploreFreely();
+                    else onClose();
+                  }}
+                  className="w-full text-left p-3 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-slate-500/10 dark:hover:bg-slate-400/15 border border-black/[0.06] dark:border-white/10 hover:border-slate-500/30 transition-all flex items-center justify-between group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-slate-500/15 text-slate-700 dark:text-slate-300 shrink-0 group-hover:scale-105 transition-transform">
+                      <Compass className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors font-display">
+                          Permíteme explorar la app por mi cuenta
+                        </span>
+                        <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-500/10 dark:bg-slate-400/20 px-2 py-0.5 rounded-full border border-slate-500/20">
+                          Modo Libre
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Cierra el tutorial y navega libremente por tus proyecciones, tareas y el asesor Co-Pilot.
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                </button>
+              </div>
+            ) : (
+              current.body
+            )}
           </div>
 
           {/* Footer Controls */}
@@ -226,13 +346,27 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
               ))}
             </div>
 
-            <button
-              onClick={handleNext}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-[#526e5e] hover:bg-[#43594c] dark:bg-[#6e8c7b] dark:hover:bg-[#5b7566] text-white shadow-sm transition-all cursor-pointer"
-            >
-              <span>{isLast ? 'Comenzar' : 'Siguiente'}</span>
-              {isLast ? <CheckCircle2 className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            </button>
+            {isLast ? (
+              <button
+                onClick={() => {
+                  audioService.playSound('click');
+                  if (onExploreFreely) onExploreFreely();
+                  else onClose();
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-slate-800 dark:text-white transition-all cursor-pointer"
+              >
+                <span>Explorar por mi cuenta</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <button
+                onClick={handleNext}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-[#526e5e] hover:bg-[#43594c] dark:bg-[#6e8c7b] dark:hover:bg-[#5b7566] text-white shadow-sm transition-all cursor-pointer"
+              >
+                <span>Siguiente</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </motion.div>
       </div>

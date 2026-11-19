@@ -25,6 +25,7 @@ import { ChatCoPilot } from './components/ChatCoPilot';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { AnimatedBackground } from './components/AnimatedBackground';
 import { TutorialModal } from './components/TutorialModal';
+import { HandoverModal } from './components/HandoverModal';
 import { audioService } from './services/audioService';
 
 export const App: React.FC = () => {
@@ -72,9 +73,11 @@ export const App: React.FC = () => {
     return 'kanban';
   });
 
-  // Audio & Tutorial states
+  // Audio, Tutorial & Handover states
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => audioService.isSoundEnabled());
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isHandoverOpen, setIsHandoverOpen] = useState(false);
+  const [autoOpenCardId, setAutoOpenCardId] = useState<string | null>(null);
 
   const handleToggleSound = useCallback(() => {
     setSoundEnabled((prev) => {
@@ -143,6 +146,28 @@ export const App: React.FC = () => {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  const handleStartFirstTask = useCallback(() => {
+    audioService.playSound('click');
+    setIsTutorialOpen(false);
+    handleSelectTab('kanban');
+    const firstTodo = kanban.cards.find(c => c.status === 'todo') || kanban.cards[0];
+    if (firstTodo) {
+      setAutoOpenCardId(firstTodo.id);
+    }
+  }, [kanban.cards]);
+
+  const handleViewInitialStatus = useCallback(() => {
+    audioService.playSound('click');
+    setIsTutorialOpen(false);
+    setIsHandoverOpen(true);
+  }, []);
+
+  const handleExploreFreely = useCallback(() => {
+    audioService.playSound('click');
+    setIsTutorialOpen(false);
+    addToast('¡Navegación libre! Explora tu Living Plan a tu propio ritmo.', 'info');
+  }, []);
 
   // Keyboard navigation for tabs (1, 2, 3)
   useEffect(() => {
@@ -566,6 +591,8 @@ export const App: React.FC = () => {
               onAddCard={handleAddCard}
               onDeleteCard={handleDeleteCard}
               onConsultTask={handleConsultTask}
+              autoOpenCardId={autoOpenCardId}
+              onClearAutoOpenCard={() => setAutoOpenCardId(null)}
             />
           )}
 
@@ -607,6 +634,17 @@ export const App: React.FC = () => {
       <TutorialModal
         isOpen={isTutorialOpen}
         onClose={() => setIsTutorialOpen(false)}
+        onStartFirstTask={handleStartFirstTask}
+        onViewInitialStatus={handleViewInitialStatus}
+        onExploreFreely={handleExploreFreely}
+      />
+
+      {/* Executive Initial State & Handover Modal */}
+      <HandoverModal
+        isOpen={isHandoverOpen}
+        onClose={() => setIsHandoverOpen(false)}
+        caseId={activeCaseId}
+        clientName={cases.find(c => c.id === activeCaseId)?.title || activeCaseId}
       />
 
       {/* Floating Notifications */}

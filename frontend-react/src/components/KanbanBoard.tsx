@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -24,6 +24,8 @@ interface KanbanBoardProps {
   onDeleteCard: (cardId: string) => Promise<void>;
   onConsultTask?: (taskTitle: string, taskImpact?: string) => void;
   isLoading?: boolean;
+  autoOpenCardId?: string | null;
+  onClearAutoOpenCard?: () => void;
 }
 
 const CATEGORY_CONFIG: Record<string, { 
@@ -162,11 +164,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onArrangeCard,
   onAddCard,
   onDeleteCard,
-  onConsultTask
+  onConsultTask,
+  autoOpenCardId,
+  onClearAutoOpenCard
 }) => {
   const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
+
+  const cards = kanban?.cards || [];
+
+  // Auto-open requested card (e.g. from tutorial "Empezar por la primera tarea")
+  useEffect(() => {
+    if (autoOpenCardId && cards.length > 0) {
+      const target = cards.find(c => c.id === autoOpenCardId) || cards.find(c => c.status === 'todo') || cards[0];
+      if (target) {
+        setSelectedCard(target);
+        onClearAutoOpenCard?.();
+      }
+    }
+  }, [autoOpenCardId, cards, onClearAutoOpenCard]);
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
@@ -176,7 +193,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [newDesc, setNewDesc] = useState('');
   const [newSteps, setNewSteps] = useState('');
 
-  const cards = kanban?.cards || [];
   const totalCards = cards.length;
   const doneCards = cards.filter(c => c.status === 'done').length;
   const inProcessCards = cards.filter(c => c.status === 'in_process').length;
