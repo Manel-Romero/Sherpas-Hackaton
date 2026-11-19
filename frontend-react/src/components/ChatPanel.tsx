@@ -143,7 +143,26 @@ const CASE_QUICK_CHIPS: Record<string, { tag: string; label: string; prompt: str
   ]
 };
 
-const CHART_COLORS = ['#526e5e', '#875f52', '#7d7568', '#4f6b85', '#6b7a6f', '#967d71', '#5a738e'];
+const CHART_COLORS = [
+  '#2563eb', // Royal Sapphire
+  '#059669', // Emerald
+  '#ea580c', // Terracotta Orange
+  '#7c3aed', // Amethyst Violet
+  '#0891b2', // Ocean Cyan
+  '#e11d48', // Crimson Rose
+  '#d97706', // Warm Amber
+  '#4f46e5', // Deep Indigo
+  '#10b981', // Mint Jade
+  '#c026d3', // Fuchsia
+  '#0284c7', // Sky Blue
+  '#ca8a04', // Goldenrod
+  '#9333ea', // Royal Purple
+  '#0d9488', // Deep Teal
+  '#f43f5e', // Coral
+  '#6366f1', // Periwinkle
+  '#16a34a', // Leaf Green
+  '#b45309'  // Warm Bronze
+];
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
@@ -431,6 +450,48 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     const tooltipBg = isDark ? 'rgba(15, 18, 25, 0.94)' : 'rgba(255, 255, 255, 0.94)';
     const tooltipBorder = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)';
 
+    const renderTooltip = ({ active, payload }: any) => {
+      if (!active || !payload || !payload.length) return null;
+      const item = payload[0];
+      const name = item.name || item.payload?.name || item.dataKey || 'Variable';
+      const val = Number(item.value || 0);
+      const color = item.payload?.fill || item.color || item.fill || '#2563eb';
+      const isPieOrDonut = chart.type === 'pie' || chart.type === 'donut';
+      const total = isPieOrDonut ? data.reduce((sum, d) => sum + (Number(d.value) || 0), 0) : 0;
+      const pct = total > 0 ? ((val / total) * 100).toFixed(1) : null;
+
+      return (
+        <div
+          className="px-3 py-2 rounded-xl liquid-glass shadow-lg border border-black/10 dark:border-white/15 pointer-events-none text-left"
+          style={{
+            backgroundColor: tooltipBg,
+            backdropFilter: 'blur(16px)',
+            minWidth: '135px'
+          }}
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <span
+              className="w-2.5 h-2.5 rounded-full inline-block shrink-0 shadow-xs"
+              style={{ backgroundColor: color }}
+            />
+            <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate max-w-[180px]" title={name}>
+              {name}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3 font-mono text-xs text-slate-600 dark:text-slate-300">
+            <span className="font-semibold text-slate-900 dark:text-white">
+              ${val.toLocaleString()}
+            </span>
+            {pct && (
+              <span className="text-[10px] font-sans text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-400/15 px-1.5 py-0.5 rounded-md font-medium">
+                {pct}%
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="my-3.5 p-4 rounded-2xl liquid-glass shadow-xs border border-black/[0.05] dark:border-white/[0.08]">
         <div className="text-xs font-semibold text-slate-800 dark:text-slate-100 mb-2.5 flex items-center justify-between font-display">
@@ -439,7 +500,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             {chart.type.toUpperCase()}
           </span>
         </div>
-        <div className="h-48 w-full">
+        <div className="h-52 w-full">
           <ResponsiveContainer width="100%" height="100%">
             {chart.type === 'pie' || chart.type === 'donut' ? (
               <PieChart>
@@ -447,29 +508,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                   data={data}
                   cx="50%"
                   cy="50%"
-                  innerRadius={chart.type === 'donut' ? 42 : 0}
+                  innerRadius={chart.type === 'donut' ? 44 : 0}
                   outerRadius={68}
                   dataKey="value"
-                  paddingAngle={3}
+                  nameKey="name"
+                  paddingAngle={data.length > 1 ? 3 : 0}
                 >
                   {data.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      stroke={isDark ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.9)'}
+                      strokeWidth={1.5}
+                    />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: tooltipBg,
-                    backdropFilter: 'blur(16px)',
-                    border: `1px solid ${tooltipBorder}`,
-                    borderRadius: '12px',
-                    color: textColor,
-                    fontSize: '11px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
-                  }}
-                  itemStyle={{ color: textColor }}
-                  labelStyle={{ color: textColor, fontWeight: 600 }}
-                  formatter={(val: any) => [`$${Number(val).toLocaleString()}`, '']}
-                />
+                <Tooltip content={renderTooltip} />
                 <Legend
                   verticalAlign="bottom"
                   align="center"
@@ -481,49 +535,27 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <LineChart data={data}>
                 <XAxis dataKey="name" stroke={axisColor} tick={{ fill: textColor, fontSize: 10 }} tickLine={false} />
                 <YAxis stroke={axisColor} tick={{ fill: textColor, fontSize: 10 }} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: tooltipBg,
-                    backdropFilter: 'blur(16px)',
-                    border: `1px solid ${tooltipBorder}`,
-                    borderRadius: '12px',
-                    color: textColor,
-                    fontSize: '11px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
-                  }}
-                  itemStyle={{ color: textColor }}
-                  labelStyle={{ color: textColor, fontWeight: 600 }}
-                  formatter={(val: any) => [`$${Number(val).toLocaleString()}`, '']}
-                />
+                <Tooltip content={renderTooltip} />
                 <Legend
                   wrapperStyle={{ color: textColor, fontSize: '11px', paddingTop: '8px' }}
                   formatter={(val) => <span style={{ color: textColor, fontSize: '11px', fontWeight: 500 }}>{val}</span>}
                 />
-                <Line type="monotone" dataKey="value" stroke="#526e5e" strokeWidth={2.4} dot={{ r: 3.5, fill: '#6e8c7b' }} />
+                <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2.4} dot={{ r: 3.5, fill: '#3b82f6' }} />
               </LineChart>
             ) : (
               <BarChart data={data}>
                 <XAxis dataKey="name" stroke={axisColor} tick={{ fill: textColor, fontSize: 10 }} tickLine={false} />
                 <YAxis stroke={axisColor} tick={{ fill: textColor, fontSize: 10 }} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: tooltipBg,
-                    backdropFilter: 'blur(16px)',
-                    border: `1px solid ${tooltipBorder}`,
-                    borderRadius: '12px',
-                    color: textColor,
-                    fontSize: '11px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
-                  }}
-                  itemStyle={{ color: textColor }}
-                  labelStyle={{ color: textColor, fontWeight: 600 }}
-                  formatter={(val: any) => [`$${Number(val).toLocaleString()}`, '']}
-                />
+                <Tooltip content={renderTooltip} />
                 <Legend
                   wrapperStyle={{ color: textColor, fontSize: '11px', paddingTop: '8px' }}
                   formatter={(val) => <span style={{ color: textColor, fontSize: '11px', fontWeight: 500 }}>{val}</span>}
                 />
-                <Bar dataKey="value" fill="#526e5e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {data.map((_, index) => (
+                    <Cell key={`bar-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             )}
           </ResponsiveContainer>

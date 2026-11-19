@@ -9,8 +9,12 @@ from compat import stretch
 import kanban_store as ks
 import table_store as ts
 
-PALETTE = ["#4565d6", "#34d399", "#f59e0b", "#ec4899", "#8b5cf6",
-           "#06b6d4", "#10b981", "#eab308", "#6366f1", "#f97316"]
+PALETTE = [
+    "#2563eb", "#059669", "#ea580c", "#7c3aed", "#0891b2",
+    "#e11d48", "#d97706", "#4f46e5", "#10b981", "#c026d3",
+    "#0284c7", "#ca8a04", "#9333ea", "#0d9488", "#f43f5e",
+    "#6366f1", "#16a34a", "#b45309"
+]
 GRID = "rgba(255, 255, 255, 0.06)"
 
 
@@ -176,7 +180,10 @@ def render_chart(chart: dict) -> None:
     elif kind in ("donut", "pie"):
         fig.add_trace(go.Pie(
             labels=labels, values=values, hole=0.45 if kind == "donut" else 0,
-            marker=dict(colors=PALETTE), textinfo="label+percent", textposition="inside",
+            marker=dict(colors=PALETTE, line=dict(color="#0f172a", width=1.5)),
+            textinfo="label+percent", textposition="inside",
+            hoverinfo="label+value+percent",
+            hovertemplate="<b>%{label}</b><br>$%{value:,.0f} (%{percent})<extra></extra>",
             textfont=dict(color="#ffffff", family="Inter, sans-serif")
         ))
     else:
